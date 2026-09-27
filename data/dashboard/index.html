@@ -1,528 +1,570 @@
 <!DOCTYPE html>
 <html lang="en" data-theme="dark">
+
 <head>
-<meta charset="utf-8"/>
-<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Wattrack - ESP32 Local Energy Monitor</title>
-<link href="https://fonts.googleapis.com" rel="preconnect"/>
-<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
-<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&amp;display=swap" rel="stylesheet"/>
-<link href="pico.min.css" rel="stylesheet"/>
-<link href="styles.css" rel="stylesheet"/>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Wattrack - ESP32 Local Energy Monitor</title>
+  <link href="https://fonts.googleapis.com" rel="preconnect" />
+  <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@200..700,0..1&amp;display=swap"
+    rel="stylesheet" />
+  <link href="pico.min.css" rel="stylesheet" />
+  <link href="styles.css" rel="stylesheet" />
 </head>
+
 <body>
-<!-- Compact ESP32 Embedded Top Navigation Bar -->
-<header class="app-header">
-<nav class="app-nav container">
-<ul>
-<li><span class="brand-badge"><span class="material-symbols-outlined">bolt</span></span></li>
-<li><strong>Wattrack</strong> <span class="pill pill-teal">ESP32 Local</span></li>
-</ul>
-<ul>
-<!-- IP / Link Status Pill -->
-<li class="pill pill-status">
-          ESP32 AP: <span class="mono teal">192.168.4.1</span>
-<span class="sep">|</span>
-<span class="live-dot"></span>
-<span class="hide-sm">Live WS</span>
-</li>
-<!-- Sync Controller Button -->
-<li>
-<button class="ghost-btn" id="reconnectBtn" title="Ping ESP32 Controller" type="button">
-<span class="material-symbols-outlined" id="syncIcon">sync</span>
-<span class="hide-sm">Sync</span>
-</button>
-</li>
-<!-- Dark / Light Mode Toggle -->
-<li>
-<button aria-label="Toggle dark/light theme" class="ghost-btn" id="themeToggleBtn" type="button">
-<span class="material-symbols-outlined icon-sun">light_mode</span>
-<span class="material-symbols-outlined icon-moon">dark_mode</span>
-<span class="hide-sm" id="themeToggleText">Dark</span>
-</button>
-</li>
-</ul>
-</nav>
-</header>
-<!-- Main Dashboard Container -->
-<main class="container">
-<!-- First-Time Setup: baseline reading (revealed by the onboarding dialog) -->
-<div class="card baseline-section" id="baselineSection" hidden>
-<div class="section-head section-head-rule">
-<div class="section-start">
-<span class="section-icon icon-amber"><span class="material-symbols-outlined">straighten</span></span>
-<div>
-<h2>First-Time Setup: Baseline Reading</h2>
-<p>Log the meter reading right now so Wattrack can compare absolute consumption later</p>
-</div>
-</div>
-</div>
-<form id="baselineForm">
-<div class="baseline-fields">
-<label for="baselineValue">Current meter reading
-<input id="baselineValue" min="0" name="baselineValue" placeholder="e.g. 12450" required step="0.01" type="number"/>
-</label>
-<label for="baselineUnit">Unit
-<select id="baselineUnit" name="baselineUnit">
-<option value="kWh">kWh</option>
-<option value="Wh">Wh</option>
-</select>
-</label>
-<label for="baselineDate">Reading date
-<input id="baselineDate" name="baselineDate" required type="date"/>
-</label>
-</div>
-<div class="baseline-actions">
-<button id="baselineSaveBtn" type="submit">Save baseline reading</button>
-<span class="save-status" id="baselineStatus" hidden>
-<span class="material-symbols-outlined">check_circle</span>
-<span>Baseline saved to this device</span>
-</span>
-</div>
-</form>
-<!-- Meter-reading guide (Pico details accordion) -->
-<details class="guide">
-<summary>How to read your utility meter</summary>
-<div class="guide-grid">
-<div class="guide-item">
-<strong>Find the kWh total</strong>
-<p>Most digital meters cycle between the accumulated kWh total and instantaneous power. Wait for the kWh screen.</p>
-</div>
-<div class="guide-item">
-<strong>Write down every digit</strong>
-<p>Enter the running total exactly as shown, including leading zeros and any decimal part.</p>
-</div>
-<div class="guide-item">
-<strong>Match the unit</strong>
-<p>Confirm the meter labels the value as kWh before saving the baseline reading.</p>
-</div>
-<div class="guide-item">
-<strong>Recheck later</strong>
-<p>A second reading a day later lets you compare meter-reported usage against Wattrack's pulse count.</p>
-</div>
-</div>
-<p class="guide-note">The baseline is kept locally in this browser and posted to the ESP32 once a firmware endpoint for it exists.</p>
-</details>
-</div>
-<!-- Top Timeframe Control & Subtitle Strip -->
-<div class="card">
-<div class="section-head">
-<div class="section-start">
-<span class="section-icon icon-teal"><span class="material-symbols-outlined">speed</span></span>
-<div>
-<h2>Live Submeter Telemetry</h2>
-<p>Real-time tenant electric consumption &amp; billing projection</p>
-</div>
-</div>
-<!-- Functional Timeframe Selector Pills -->
-<div class="timeframe-group" id="timeframeContainer">
-<button class="timeframe-btn" data-range="today" type="button">Today</button>
-<button class="timeframe-btn" data-range="week" type="button">This Week</button>
-<button class="timeframe-btn active" data-range="month" type="button">This Month</button>
-<button class="timeframe-btn" data-range="billing" type="button">Billing Cycle</button>
-</div>
-</div>
-</div>
-<!-- 3 MAIN TOP SUMMARY METRIC CARDS (3-COLUMN PRIMARY ROW) -->
-<section class="metric-cards">
-<!-- Column 1: Power Now -->
-<div class="card metric-card">
-<div class="card-head">
-<span class="card-label">Power Now</span>
-<span class="pill pill-teal status-badge">
-<span class="status-dot pulse-led"></span>
-<span>Pulse LED Active</span>
-</span>
-</div>
-<div class="card-metric">
-<div class="metric-line">
-<span class="metric-value" id="powerNowValue">1.4</span>
-<span class="metric-unit metric-unit-teal">kW</span>
-<span class="metric-sub">/</span>
-<span class="metric-sub mono" id="powerNowWatts">1,420 W</span>
-</div>
-<p class="metric-note">
-<span class="material-symbols-outlined">offline_bolt</span>
-<span>Current rate: <strong id="pulseRateDisplay">23.6 blinks/min</strong></span>
-</p>
-</div>
-<div class="card-foot card-foot-split">
-<span>
-<span class="status-dot"></span>
-          Direct GPIO4 Interrupt
-        </span>
-<strong class="mono">500ms poll</strong>
-</div>
-</div>
-<!-- Column 2: Used This Month -->
-<div class="card metric-card">
-<div class="card-head">
-<span class="card-label" id="usedMetricTitle">Used This Month</span>
-<span class="section-icon icon-blue"><span class="material-symbols-outlined">calendar_month</span></span>
-</div>
-<div class="card-metric">
-<div class="metric-line">
-<span class="metric-value" id="usedValue">285</span>
-<span class="metric-unit metric-unit-blue">kWh</span>
-</div>
-<p class="metric-note" id="usedSub">
-          Day 18 of 30 in lease billing cycle
-        </p>
-</div>
-<div class="card-foot card-foot-split">
-<span>Daily average</span>
-<strong id="dailyAvg">15.8 kWh / day</strong>
-</div>
-</div>
-<!-- Column 3: Estimated Month-End Spend / Projection -->
-<div class="card metric-card">
-<div class="card-head">
-<span class="card-label">Projected Month Spend</span>
-<span class="section-icon icon-amber"><span class="material-symbols-outlined">receipt_long</span></span>
-</div>
-<div class="card-metric">
-<div class="metric-line">
-<span class="metric-value" id="projValue">$68.20</span>
-<span class="card-label">EST</span>
-</div>
-<!-- Progress towards personal tenant limit -->
-<div class="progress">
-<div class="progress-fill" style="width: 68%;"></div>
-</div>
-</div>
-<div class="card-foot card-foot-split">
-<span class="note-teal">
-<span class="material-symbols-outlined">savings</span>
-<span>$6.80 under $75 cap</span>
-</span>
-<span>Prev: $73.10</span>
-</div>
-</div>
-</section>
-<!-- HYBRID BACKGROUND HEATMAP BARS + SMOOTH PROJECTION CURVE -->
-<div class="card">
-<div class="chart-toolbar">
-<div>
-<h2 class="chart-title"><span id="chartMainTitle">Daily Energy Usage &amp; Heatmap Spend Profile</span><span class="pill pill-teal" id="chartBadge">October 2024</span></h2>
-<p class="chart-help muted" id="chartHelpText">Daily spend intensity bars layered with continuous pulse telemetry transitioning into month-end forecast.</p>
-</div>
-<!-- Chart Legend -->
-<ul class="legend">
-<li><span class="swatch swatch-teal"></span>Recorded Usage</li>
-<li><span class="swatch swatch-lime"></span>Peak Spend Day</li>
-<li><span class="swatch swatch-dashed"></span>Projected (Oct 25–31)</li>
-</ul>
-</div>
-<!-- Responsive SVG Chart with Background Heatmap Columns & Smooth Curves -->
-<div class="chart-scroll" id="chartWrapper">
-<div class="chart-inner">
-<svg class="chart-svg" id="energySvg" viewBox="0 0 920 260">
-<defs>
-<!-- Smooth Gradient for Recorded Area -->
-<linearGradient id="curveGradient" x1="0" x2="0" y1="0" y2="1">
-<stop class="stop-line-lo" offset="0%" stop-color="#008378" stop-opacity="0.25"></stop>
-<stop offset="100%" stop-color="#008378" stop-opacity="0.0"></stop>
-</linearGradient>
-<!-- Projected Area Fill -->
-<linearGradient id="forecastArea" x1="0" x2="0" y1="0" y2="1">
-<stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.12"></stop>
-<stop offset="100%" stop-color="#2dd4bf" stop-opacity="0.0"></stop>
-</linearGradient>
-<!-- Special Heatmap Bar Gradients -->
-<linearGradient id="peakBarGrad" x1="0" x2="0" y1="0" y2="1">
-<stop offset="0%" stop-color="#bef264" stop-opacity="0.95"></stop>
-<stop offset="100%" stop-color="#84cc16" stop-opacity="0.75"></stop>
-</linearGradient>
-<linearGradient id="normalBarGrad" x1="0" x2="0" y1="0" y2="1">
-<stop class="stop-bar-lo" offset="0%" stop-color="#94a3b8" stop-opacity="0.28"></stop>
-<stop class="stop-bar-hi" offset="100%" stop-color="#64748b" stop-opacity="0.08"></stop>
-</linearGradient>
-<linearGradient id="projectedBarGrad" x1="0" x2="0" y1="0" y2="1">
-<stop offset="0%" stop-color="#38bdf8" stop-opacity="0.22"></stop>
-<stop offset="100%" stop-color="#38bdf8" stop-opacity="0.04"></stop>
-</linearGradient>
-</defs>
-<!-- Subtle Horizontal Gridlines -->
-<line class="grid-line" stroke-width="1" x1="45" x2="900" y1="30" y2="30"></line>
-<line class="grid-line" stroke-width="1" x1="45" x2="900" y1="80" y2="80"></line>
-<line class="grid-line" stroke-width="1" x1="45" x2="900" y1="130" y2="130"></line>
-<line class="grid-line" stroke-width="1" x1="45" x2="900" y1="180" y2="180"></line>
-<line class="grid-line-axis" stroke-width="1.5" x1="45" x2="900" y1="220" y2="220"></line>
-<!-- Y-Axis Labels -->
-<text class="axis-label axis-label-soft" text-anchor="end" x="35" y="34">30 kWh</text>
-<text class="axis-label axis-label-soft" text-anchor="end" x="35" y="84">20 kWh</text>
-<text class="axis-label axis-label-soft" text-anchor="end" x="35" y="134">10 kWh</text>
-<text class="axis-label axis-label-soft" text-anchor="end" x="35" y="184">5 kWh</text>
-<text class="axis-label axis-label-soft" text-anchor="end" x="35" y="224">0</text>
-<!-- ========================================== -->
-<!-- 1. BACKGROUND HEATMAP SPEND COLUMNS -->
-<!-- ========================================== -->
-<!-- Day 1 (Oct 1) -->
-<rect class="chart-bar" data-badge="Low Load" data-cost="$1.25" data-date="Oct 1" data-kwh="8.5 kWh" data-type="recorded" fill="url(#normalBarGrad)" height="65" rx="10" width="28" x="50" y="155"></rect>
-<!-- Day 4 (Oct 4) -->
-<rect class="chart-bar" data-badge="Normal" data-cost="$1.55" data-date="Oct 4" data-kwh="10.8 kWh" data-type="recorded" fill="url(#normalBarGrad)" height="80" rx="10" width="28" x="110" y="140"></rect>
-<!-- Day 7 (Oct 7) -->
-<rect class="chart-bar" data-badge="Weekday" data-cost="$1.85" data-date="Oct 7" data-kwh="12.2 kWh" data-type="recorded" fill="url(#normalBarGrad)" height="95" rx="10" width="28" x="180" y="125"></rect>
-<!-- Day 10 (Oct 10) -->
-<rect class="chart-bar" data-badge="AC active" data-cost="$2.05" data-date="Oct 10" data-kwh="13.9 kWh" data-type="recorded" fill="url(#normalBarGrad)" height="105" rx="10" width="28" x="250" y="115"></rect>
-<!-- Day 14 (Oct 14) -->
-<rect class="chart-bar" data-badge="High Load" data-cost="$2.60" data-date="Oct 14" data-kwh="18.0 kWh" data-type="recorded" fill="url(#normalBarGrad)" height="135" rx="10" width="28" x="330" y="85"></rect>
-<!-- Day 17 (Oct 17) -->
-<rect class="chart-bar" data-badge="Laundry Day" data-cost="$2.50" data-date="Oct 17" data-kwh="17.4 kWh" data-type="recorded" fill="url(#normalBarGrad)" height="128" rx="10" width="28" x="410" y="92"></rect>
-<!-- PEAK HIGHLIGHT BAR (Oct 20) -->
-<g class="chart-bar" data-badge="🔥 Peak Day" data-cost="$3.35" data-date="Oct 20" data-kwh="22.4 kWh" data-type="peak">
-<rect fill="url(#peakBarGrad)" height="155" rx="14" width="34" x="490" y="65"></rect>
-<!-- Vertical Text/Label inside bar -->
-<text class="peak-text" font-size="10" font-weight="800" text-anchor="middle" transform="rotate(-90 507 170)" x="507" y="170">$3.35 PEAK</text>
-</g>
-<!-- Day 22 (Oct 22) -->
-<rect class="chart-bar" data-badge="Normal" data-cost="$2.58" data-date="Oct 22" data-kwh="17.8 kWh" data-type="recorded" fill="url(#normalBarGrad)" height="132" rx="10" width="28" x="570" y="88"></rect>
-<!-- TODAY COLUMN (Oct 24) -->
-<g class="chart-bar" data-badge="🟢 LIVE TODAY" data-cost="$2.40" data-date="Oct 24 (Today)" data-kwh="16.8 kWh" data-type="today">
-<rect class="hbar-today" height="122" rx="12" stroke-dasharray="3 3" stroke-width="1.5" width="32" x="650" y="98"></rect>
-</g>
-<!-- PROJECTED COLUMNS (Oct 26, Oct 28, Oct 31) -->
-<rect class="chart-bar" data-badge="Forecast" data-cost="$2.38" data-date="Oct 26 (Projected)" data-kwh="16.5 kWh" data-type="forecast" fill="url(#projectedBarGrad)" height="120" rx="9" stroke="rgba(56, 189, 248, 0.4)" stroke-dasharray="2 2" width="26" x="730" y="100"></rect>
-<rect class="chart-bar" data-badge="Forecast" data-cost="$2.42" data-date="Oct 28 (Projected)" data-kwh="16.9 kWh" data-type="forecast" fill="url(#projectedBarGrad)" height="124" rx="9" stroke="rgba(56, 189, 248, 0.4)" stroke-dasharray="2 2" width="26" x="800" y="96"></rect>
-<rect class="chart-bar" data-badge="Forecast End" data-cost="$2.48" data-date="Oct 31 (End Cycle)" data-kwh="17.2 kWh" data-type="forecast" fill="url(#projectedBarGrad)" height="128" rx="9" stroke="rgba(56, 189, 248, 0.4)" stroke-dasharray="2 2" width="26" x="870" y="92"></rect>
-<!-- Today Vertical Line Marker & Pill Header -->
-<line class="today-line" stroke-dasharray="4 4" stroke-width="1.8" x1="666" x2="666" y1="20" y2="220"></line>
-<g transform="translate(631, 6)">
-<rect class="today-pill" height="22" rx="8" width="70" x="0" y="0"></rect>
-<text class="today-pill-text" text-anchor="middle" x="35" y="15">TODAY</text>
-</g>
-<!-- Forecast Fill Gradient -->
-<polygon fill="url(#forecastArea)" points="666,108 743,103 813,99 883,95 883,220 666,220"></polygon>
-<!-- Recorded Smooth Curve Area Fill -->
-<path d="M 64,165 
+  <!-- Compact ESP32 Embedded Top Navigation Bar -->
+  <header class="app-header">
+    <nav class="app-nav container">
+      <ul>
+        <li><span class="brand-badge"><span class="material-symbols-outlined">bolt</span></span></li>
+        <li><strong>Wattrack</strong> <span class="pill pill-teal">ESP32 Local</span></li>
+      </ul>
+      <ul>
+        <!-- IP / Link Status Pill -->
+        <li class="pill pill-status">
+          ESP32 AP: <span class="mono teal">%IP_ADDRESS%</span>
+          <span class="sep">|</span>
+          <span class="live-dot"></span>
+          <span class="hide-sm">Live WS</span>
+        </li>
+        <!-- Sync Controller Button -->
+        <li>
+          <button class="ghost-btn" id="reconnectBtn" title="Ping ESP32 Controller" type="button">
+            <span class="material-symbols-outlined" id="syncIcon">sync</span>
+            <span class="hide-sm">Sync</span>
+          </button>
+        </li>
+        <!-- Dark / Light Mode Toggle -->
+        <li>
+          <button aria-label="Toggle dark/light theme" class="ghost-btn" id="themeToggleBtn" type="button">
+            <span class="material-symbols-outlined icon-sun">light_mode</span>
+            <span class="material-symbols-outlined icon-moon">dark_mode</span>
+            <span class="hide-sm" id="themeToggleText">Dark</span>
+          </button>
+        </li>
+      </ul>
+    </nav>
+  </header>
+  <!-- Main Dashboard Container -->
+  <main class="container">
+    <!-- First-Time Setup: baseline reading (revealed by the onboarding dialog) -->
+    <div class="card baseline-section" id="baselineSection" hidden>
+      <div class="section-head section-head-rule">
+        <div class="section-start">
+          <span class="section-icon icon-amber"><span class="material-symbols-outlined">straighten</span></span>
+          <div>
+            <h2>First-Time Setup: Baseline Reading</h2>
+            <p>Log the meter reading right now so Wattrack can compare absolute consumption later</p>
+          </div>
+        </div>
+      </div>
+      <form id="baselineForm">
+        <div class="baseline-fields">
+          <label for="baselineValue">Current meter reading
+            <input id="baselineValue" min="0" name="baselineValue" placeholder="e.g. 12450" required step="0.01"
+              type="number" />
+          </label>
+          <label for="baselineUnit">Unit
+            <select id="baselineUnit" name="baselineUnit">
+              <option value="kWh">kWh</option>
+              <option value="Wh">Wh</option>
+            </select>
+          </label>
+          <label for="baselineDate">Reading date
+            <input id="baselineDate" name="baselineDate" required type="date" />
+          </label>
+        </div>
+        <div class="baseline-actions">
+          <button id="baselineSaveBtn" type="submit">Save baseline reading</button>
+          <span class="save-status" id="baselineStatus" hidden>
+            <span class="material-symbols-outlined">check_circle</span>
+            <span>Baseline saved to this device</span>
+          </span>
+        </div>
+      </form>
+      <!-- Meter-reading guide (Pico details accordion) -->
+      <details class="guide">
+        <summary>How to read your utility meter</summary>
+        <div class="guide-grid">
+          <div class="guide-item">
+            <strong>Find the kWh total</strong>
+            <p>Most digital meters cycle between the accumulated kWh total and instantaneous power. Wait for the kWh
+              screen.</p>
+          </div>
+          <div class="guide-item">
+            <strong>Write down every digit</strong>
+            <p>Enter the running total exactly as shown, including leading zeros and any decimal part.</p>
+          </div>
+          <div class="guide-item">
+            <strong>Match the unit</strong>
+            <p>Confirm the meter labels the value as kWh before saving the baseline reading.</p>
+          </div>
+          <div class="guide-item">
+            <strong>Recheck later</strong>
+            <p>A second reading a day later lets you compare meter-reported usage against Wattrack's pulse count.</p>
+          </div>
+        </div>
+        <p class="guide-note">The baseline is kept locally in this browser and posted to the ESP32 once a firmware
+          endpoint for it exists.</p>
+      </details>
+    </div>
+    <!-- Top Timeframe Control & Subtitle Strip -->
+    <div class="card">
+      <div class="section-head">
+        <div class="section-start">
+          <span class="section-icon icon-teal"><span class="material-symbols-outlined">speed</span></span>
+          <div>
+            <h2>Live Submeter Telemetry</h2>
+            <p>Real-time tenant electric consumption &amp; billing projection</p>
+          </div>
+        </div>
+        <!-- Functional Timeframe Selector Pills -->
+        <div class="timeframe-group" id="timeframeContainer">
+          <button class="timeframe-btn" data-range="today" type="button">Today</button>
+          <button class="timeframe-btn" data-range="week" type="button">This Week</button>
+          <button class="timeframe-btn active" data-range="month" type="button">This Month</button>
+          <button class="timeframe-btn" data-range="billing" type="button">Billing Cycle</button>
+        </div>
+      </div>
+    </div>
+    <!-- 3 MAIN TOP SUMMARY METRIC CARDS (3-COLUMN PRIMARY ROW) -->
+    <section class="metric-cards">
+      <!-- Column 1: Power Now -->
+      <div class="card metric-card">
+        <div class="card-head">
+          <span class="card-label">Power Now</span>
+          <span class="pill pill-teal status-badge">
+            <span class="status-dot pulse-led"></span>
+            <span>Pulse LED Active</span>
+          </span>
+        </div>
+        <div class="card-metric">
+          <div class="metric-line">
+            <span class="metric-value" id="powerNowValue">%POWER_NOW%</span>
+            <span class="metric-unit metric-unit-teal">kW</span>
+            <span class="metric-sub">/</span>
+            <span class="metric-sub mono" id="powerNowWatts">%POWER_NOW_WATTS%</span>
+          </div>
+          <p class="metric-note">
+            <span class="material-symbols-outlined">offline_bolt</span>
+            <span>Current Pulse: <strong id="pulseDisplay">%PULSE_RATE%</strong></span>
+          </p>
+        </div>
+        <div class="card-foot card-foot-split">
+          <span>
+            <span class="status-dot"></span>
+            Direct GPIO4 Interrupt
+          </span>
+        </div>
+      </div>
+      <!-- Column 2: Used This Month -->
+      <div class="card metric-card">
+        <div class="card-head">
+          <span class="card-label" id="usedMetricTitle">Used This Month</span>
+          <span class="section-icon icon-blue"><span class="material-symbols-outlined">calendar_month</span></span>
+        </div>
+        <div class="card-metric">
+          <div class="metric-line">
+            <span class="metric-value" id="usedValue">285</span>
+            <span class="metric-unit metric-unit-blue">kWh</span>
+          </div>
+          <p class="metric-note" id="usedSub">
+            Day 18 of 30 in lease billing cycle
+          </p>
+        </div>
+        <div class="card-foot card-foot-split">
+          <span>Daily average</span>
+          <strong id="dailyAvg">15.8 kWh / day</strong>
+        </div>
+      </div>
+      <!-- Column 3: Estimated Month-End Spend / Projection -->
+      <div class="card metric-card">
+        <div class="card-head">
+          <span class="card-label">Projected Month Spend</span>
+          <span class="section-icon icon-amber"><span class="material-symbols-outlined">receipt_long</span></span>
+        </div>
+        <div class="card-metric">
+          <div class="metric-line">
+            <span class="metric-value" id="projValue">$68.20</span>
+            <span class="card-label">EST</span>
+          </div>
+          <!-- Progress towards personal tenant limit -->
+          <div class="progress">
+            <div class="progress-fill" style="width: 68%;"></div>
+          </div>
+        </div>
+        <div class="card-foot card-foot-split">
+          <span class="note-teal">
+            <span class="material-symbols-outlined">savings</span>
+            <span>$6.80 under $75 cap</span>
+          </span>
+          <span>Prev: $73.10</span>
+        </div>
+      </div>
+    </section>
+    <!-- HYBRID BACKGROUND HEATMAP BARS + SMOOTH PROJECTION CURVE -->
+    <div class="card">
+      <div class="chart-toolbar">
+        <div>
+          <h2 class="chart-title"><span id="chartMainTitle">Daily Energy Usage &amp; Heatmap Spend Profile</span><span
+              class="pill pill-teal" id="chartBadge">October 2024</span></h2>
+          <p class="chart-help muted" id="chartHelpText">Daily spend intensity bars layered with continuous pulse
+            telemetry transitioning into month-end forecast.</p>
+        </div>
+        <!-- Chart Legend -->
+        <ul class="legend">
+          <li><span class="swatch swatch-teal"></span>Recorded Usage</li>
+          <li><span class="swatch swatch-lime"></span>Peak Spend Day</li>
+          <li><span class="swatch swatch-dashed"></span>Projected (Oct 25–31)</li>
+        </ul>
+      </div>
+      <!-- Responsive SVG Chart with Background Heatmap Columns & Smooth Curves -->
+      <div class="chart-scroll" id="chartWrapper">
+        <div class="chart-inner">
+          <svg class="chart-svg" id="energySvg" viewBox="0 0 920 260">
+            <defs>
+              <!-- Smooth Gradient for Recorded Area -->
+              <linearGradient id="curveGradient" x1="0" x2="0" y1="0" y2="1">
+                <stop class="stop-line-lo" offset="0%" stop-color="#008378" stop-opacity="0.25"></stop>
+                <stop offset="100%" stop-color="#008378" stop-opacity="0.0"></stop>
+              </linearGradient>
+              <!-- Projected Area Fill -->
+              <linearGradient id="forecastArea" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#2dd4bf" stop-opacity="0.12"></stop>
+                <stop offset="100%" stop-color="#2dd4bf" stop-opacity="0.0"></stop>
+              </linearGradient>
+              <!-- Special Heatmap Bar Gradients -->
+              <linearGradient id="peakBarGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#bef264" stop-opacity="0.95"></stop>
+                <stop offset="100%" stop-color="#84cc16" stop-opacity="0.75"></stop>
+              </linearGradient>
+              <linearGradient id="normalBarGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop class="stop-bar-lo" offset="0%" stop-color="#94a3b8" stop-opacity="0.28"></stop>
+                <stop class="stop-bar-hi" offset="100%" stop-color="#64748b" stop-opacity="0.08"></stop>
+              </linearGradient>
+              <linearGradient id="projectedBarGrad" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.22"></stop>
+                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0.04"></stop>
+              </linearGradient>
+            </defs>
+            <!-- Subtle Horizontal Gridlines -->
+            <line class="grid-line" stroke-width="1" x1="45" x2="900" y1="30" y2="30"></line>
+            <line class="grid-line" stroke-width="1" x1="45" x2="900" y1="80" y2="80"></line>
+            <line class="grid-line" stroke-width="1" x1="45" x2="900" y1="130" y2="130"></line>
+            <line class="grid-line" stroke-width="1" x1="45" x2="900" y1="180" y2="180"></line>
+            <line class="grid-line-axis" stroke-width="1.5" x1="45" x2="900" y1="220" y2="220"></line>
+            <!-- Y-Axis Labels -->
+            <text class="axis-label axis-label-soft" text-anchor="end" x="35" y="34">30 kWh</text>
+            <text class="axis-label axis-label-soft" text-anchor="end" x="35" y="84">20 kWh</text>
+            <text class="axis-label axis-label-soft" text-anchor="end" x="35" y="134">10 kWh</text>
+            <text class="axis-label axis-label-soft" text-anchor="end" x="35" y="184">5 kWh</text>
+            <text class="axis-label axis-label-soft" text-anchor="end" x="35" y="224">0</text>
+            <!-- ========================================== -->
+            <!-- 1. BACKGROUND HEATMAP SPEND COLUMNS -->
+            <!-- ========================================== -->
+            <!-- Day 1 (Oct 1) -->
+            <rect class="chart-bar" data-badge="Low Load" data-cost="$1.25" data-date="Oct 1" data-kwh="8.5 kWh"
+              data-type="recorded" fill="url(#normalBarGrad)" height="65" rx="10" width="28" x="50" y="155"></rect>
+            <!-- Day 4 (Oct 4) -->
+            <rect class="chart-bar" data-badge="Normal" data-cost="$1.55" data-date="Oct 4" data-kwh="10.8 kWh"
+              data-type="recorded" fill="url(#normalBarGrad)" height="80" rx="10" width="28" x="110" y="140"></rect>
+            <!-- Day 7 (Oct 7) -->
+            <rect class="chart-bar" data-badge="Weekday" data-cost="$1.85" data-date="Oct 7" data-kwh="12.2 kWh"
+              data-type="recorded" fill="url(#normalBarGrad)" height="95" rx="10" width="28" x="180" y="125"></rect>
+            <!-- Day 10 (Oct 10) -->
+            <rect class="chart-bar" data-badge="AC active" data-cost="$2.05" data-date="Oct 10" data-kwh="13.9 kWh"
+              data-type="recorded" fill="url(#normalBarGrad)" height="105" rx="10" width="28" x="250" y="115"></rect>
+            <!-- Day 14 (Oct 14) -->
+            <rect class="chart-bar" data-badge="High Load" data-cost="$2.60" data-date="Oct 14" data-kwh="18.0 kWh"
+              data-type="recorded" fill="url(#normalBarGrad)" height="135" rx="10" width="28" x="330" y="85"></rect>
+            <!-- Day 17 (Oct 17) -->
+            <rect class="chart-bar" data-badge="Laundry Day" data-cost="$2.50" data-date="Oct 17" data-kwh="17.4 kWh"
+              data-type="recorded" fill="url(#normalBarGrad)" height="128" rx="10" width="28" x="410" y="92"></rect>
+            <!-- PEAK HIGHLIGHT BAR (Oct 20) -->
+            <g class="chart-bar" data-badge="🔥 Peak Day" data-cost="$3.35" data-date="Oct 20" data-kwh="22.4 kWh"
+              data-type="peak">
+              <rect fill="url(#peakBarGrad)" height="155" rx="14" width="34" x="490" y="65"></rect>
+              <!-- Vertical Text/Label inside bar -->
+              <text class="peak-text" font-size="10" font-weight="800" text-anchor="middle"
+                transform="rotate(-90 507 170)" x="507" y="170">$3.35 PEAK</text>
+            </g>
+            <!-- Day 22 (Oct 22) -->
+            <rect class="chart-bar" data-badge="Normal" data-cost="$2.58" data-date="Oct 22" data-kwh="17.8 kWh"
+              data-type="recorded" fill="url(#normalBarGrad)" height="132" rx="10" width="28" x="570" y="88"></rect>
+            <!-- TODAY COLUMN (Oct 24) -->
+            <g class="chart-bar" data-badge="🟢 LIVE TODAY" data-cost="$2.40" data-date="Oct 24 (Today)"
+              data-kwh="16.8 kWh" data-type="today">
+              <rect class="hbar-today" height="122" rx="12" stroke-dasharray="3 3" stroke-width="1.5" width="32" x="650"
+                y="98"></rect>
+            </g>
+            <!-- PROJECTED COLUMNS (Oct 26, Oct 28, Oct 31) -->
+            <rect class="chart-bar" data-badge="Forecast" data-cost="$2.38" data-date="Oct 26 (Projected)"
+              data-kwh="16.5 kWh" data-type="forecast" fill="url(#projectedBarGrad)" height="120" rx="9"
+              stroke="rgba(56, 189, 248, 0.4)" stroke-dasharray="2 2" width="26" x="730" y="100"></rect>
+            <rect class="chart-bar" data-badge="Forecast" data-cost="$2.42" data-date="Oct 28 (Projected)"
+              data-kwh="16.9 kWh" data-type="forecast" fill="url(#projectedBarGrad)" height="124" rx="9"
+              stroke="rgba(56, 189, 248, 0.4)" stroke-dasharray="2 2" width="26" x="800" y="96"></rect>
+            <rect class="chart-bar" data-badge="Forecast End" data-cost="$2.48" data-date="Oct 31 (End Cycle)"
+              data-kwh="17.2 kWh" data-type="forecast" fill="url(#projectedBarGrad)" height="128" rx="9"
+              stroke="rgba(56, 189, 248, 0.4)" stroke-dasharray="2 2" width="26" x="870" y="92"></rect>
+            <!-- Today Vertical Line Marker & Pill Header -->
+            <line class="today-line" stroke-dasharray="4 4" stroke-width="1.8" x1="666" x2="666" y1="20" y2="220">
+            </line>
+            <g transform="translate(631, 6)">
+              <rect class="today-pill" height="22" rx="8" width="70" x="0" y="0"></rect>
+              <text class="today-pill-text" text-anchor="middle" x="35" y="15">TODAY</text>
+            </g>
+            <!-- Forecast Fill Gradient -->
+            <polygon fill="url(#forecastArea)" points="666,108 743,103 813,99 883,95 883,220 666,220"></polygon>
+            <!-- Recorded Smooth Curve Area Fill -->
+            <path d="M 64,165 
                    C 124,145 194,128 264,120 
                    C 344,90 424,96 507,70 
                    C 584,92 620,112 666,108 
                    L 666,220 L 64,220 Z" fill="url(#curveGradient)"></path>
-<!-- Solid Recorded Flowing Curve -->
-<path class="curve-line chart-path-anim" d="M 64,165 
+            <!-- Solid Recorded Flowing Curve -->
+            <path class="curve-line chart-path-anim" d="M 64,165 
                    C 124,145 194,128 264,120 
                    C 344,90 424,96 507,70 
                    C 584,92 620,112 666,108" fill="none" stroke-linecap="round" stroke-width="3.5"></path>
-<!-- Dashed Forecast Curve to Month-End -->
-<path class="curve-forecast" d="M 666,108 
-                   C 730,103 790,99 883,95" fill="none" stroke-dasharray="5 5" stroke-linecap="round" stroke-width="2.8"></path>
-<!-- Interactive Hover Curve Nodes -->
-<circle class="chart-point" cx="64" cy="165" data-badge="Normal" data-cost="$1.25" data-date="Oct 1" data-kwh="8.5 kWh" fill="#ffffff" r="5" stroke="#008378" stroke-width="2.5"></circle>
-<circle class="chart-point" cx="194" cy="128" data-badge="Normal" data-cost="$1.85" data-date="Oct 7" data-kwh="12.2 kWh" fill="#ffffff" r="5" stroke="#008378" stroke-width="2.5"></circle>
-<circle class="chart-point" cx="344" cy="90" data-badge="Laundry Day" data-cost="$2.60" data-date="Oct 14" data-kwh="18.0 kWh" fill="#ffffff" r="5" stroke="#008378" stroke-width="2.5"></circle>
-<!-- Peak Node -->
-<circle class="chart-point chart-point-peak" cx="507" cy="70" data-badge="Peak Day" data-cost="$3.35" data-date="Oct 20" data-kwh="22.4 kWh" fill="#bef264" r="6.5" stroke="#0f172a" stroke-width="2.5"></circle>
-<!-- Active Today Node -->
-<circle class="chart-point chart-point-live" cx="666" cy="108" data-badge="LIVE" data-cost="$2.40" data-date="Oct 24 (Today)" data-kwh="16.8 kWh" data-live="true" fill="#00685f" r="7" stroke="#ffffff" stroke-width="2.5"></circle>
-<!-- Projected Nodes -->
-<circle class="chart-point chart-point-forecast" cx="813" cy="99" data-badge="Projected" data-cost="$2.42" data-date="Oct 28 (Projected)" data-kwh="16.9 kWh" fill="#ffffff" r="5" stroke="#38bdf8" stroke-width="2"></circle>
-<circle class="chart-point chart-point-forecast" cx="883" cy="95" data-badge="Cycle Close" data-cost="$2.48" data-date="Oct 31 (End)" data-kwh="17.2 kWh" fill="#ffffff" r="5" stroke="#38bdf8" stroke-width="2"></circle>
-<!-- X-Axis Labels -->
-<text class="axis-label" text-anchor="middle" x="64" y="240">Oct 1</text>
-<text class="axis-label" text-anchor="middle" x="194" y="240">Oct 7</text>
-<text class="axis-label" text-anchor="middle" x="344" y="240">Oct 14</text>
-<text class="axis-label axis-label-strong" text-anchor="middle" x="507" y="240">Oct 20 (Peak)</text>
-<text class="axis-label axis-label-today" text-anchor="middle" x="666" y="240">Oct 24 (Today)</text>
-<text class="axis-label axis-label-soft" text-anchor="middle" x="813" y="240">Oct 28</text>
-<text class="axis-label axis-label-soft" text-anchor="middle" x="883" y="240">Oct 31</text>
-</svg>
-<!-- Dynamic Floating Tooltip -->
-<div class="chart-tooltip" id="chartTooltip" hidden>
-<div class="tooltip-top">
-<span id="tooltipDate">Oct 20</span>
-<span class="tooltip-badge" id="tooltipBadge">PEAK</span>
-</div>
-<div class="tooltip-main">
-<span id="tooltipKwhValue">22.4 kWh</span>
-<span class="tooltip-cost" id="tooltipCost">$3.35</span>
-</div>
-<div class="tooltip-sub">
-<span>Submeter impulse count</span>
-<span class="mono" id="tooltipImpulses">22,400 imp</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-<!-- THE METER CONFIGURATION SECTION -->
-<div class="card">
-<div class="section-head section-head-rule">
-<div class="section-start">
-<span class="section-icon icon-teal"><span class="material-symbols-outlined">tune</span></span>
-<div>
-<h2>Submeter Pulse Configuration</h2>
-<p>Tune the optical / digital impulse constant stored in non-volatile flash</p>
-</div>
-</div>
-</div>
-<!-- Config Grid: Preset Buttons + Stepper + Real-Time Explanation -->
-<div class="config-grid">
-<!-- Left: Controls & Stepper -->
-<div class="config-controls">
-<label class="field-label" for="pulseConstantInput">
-          Submeter Pulse Constant (imp / kWh)
-        </label>
-<!-- Quick Preset Buttons -->
-<div class="preset-group">
-<button class="preset-btn" data-value="800" type="button">800 imp/kWh</button>
-<button class="preset-btn active" data-value="1000" type="button">1,000 imp/kWh (Standard)</button>
-<button class="preset-btn" data-value="1600" type="button">1,600 imp/kWh</button>
-<button class="preset-btn" data-value="2000" type="button">2,000 imp/kWh</button>
-</div>
-<!-- Numeric Input with +/- Stepper Buttons -->
-<div class="stepper">
-<div class="stepper-input">
-<button id="decPulseBtn" type="button">
+            <!-- Dashed Forecast Curve to Month-End -->
+            <path class="curve-forecast" d="M 666,108 
+                   C 730,103 790,99 883,95" fill="none" stroke-dasharray="5 5" stroke-linecap="round"
+              stroke-width="2.8"></path>
+            <!-- Interactive Hover Curve Nodes -->
+            <circle class="chart-point" cx="64" cy="165" data-badge="Normal" data-cost="$1.25" data-date="Oct 1"
+              data-kwh="8.5 kWh" fill="#ffffff" r="5" stroke="#008378" stroke-width="2.5"></circle>
+            <circle class="chart-point" cx="194" cy="128" data-badge="Normal" data-cost="$1.85" data-date="Oct 7"
+              data-kwh="12.2 kWh" fill="#ffffff" r="5" stroke="#008378" stroke-width="2.5"></circle>
+            <circle class="chart-point" cx="344" cy="90" data-badge="Laundry Day" data-cost="$2.60" data-date="Oct 14"
+              data-kwh="18.0 kWh" fill="#ffffff" r="5" stroke="#008378" stroke-width="2.5"></circle>
+            <!-- Peak Node -->
+            <circle class="chart-point chart-point-peak" cx="507" cy="70" data-badge="Peak Day" data-cost="$3.35"
+              data-date="Oct 20" data-kwh="22.4 kWh" fill="#bef264" r="6.5" stroke="#0f172a" stroke-width="2.5">
+            </circle>
+            <!-- Active Today Node -->
+            <circle class="chart-point chart-point-live" cx="666" cy="108" data-badge="LIVE" data-cost="$2.40"
+              data-date="Oct 24 (Today)" data-kwh="16.8 kWh" data-live="true" fill="#00685f" r="7" stroke="#ffffff"
+              stroke-width="2.5"></circle>
+            <!-- Projected Nodes -->
+            <circle class="chart-point chart-point-forecast" cx="813" cy="99" data-badge="Projected" data-cost="$2.42"
+              data-date="Oct 28 (Projected)" data-kwh="16.9 kWh" fill="#ffffff" r="5" stroke="#38bdf8" stroke-width="2">
+            </circle>
+            <circle class="chart-point chart-point-forecast" cx="883" cy="95" data-badge="Cycle Close" data-cost="$2.48"
+              data-date="Oct 31 (End)" data-kwh="17.2 kWh" fill="#ffffff" r="5" stroke="#38bdf8" stroke-width="2">
+            </circle>
+            <!-- X-Axis Labels -->
+            <text class="axis-label" text-anchor="middle" x="64" y="240">Oct 1</text>
+            <text class="axis-label" text-anchor="middle" x="194" y="240">Oct 7</text>
+            <text class="axis-label" text-anchor="middle" x="344" y="240">Oct 14</text>
+            <text class="axis-label axis-label-strong" text-anchor="middle" x="507" y="240">Oct 20 (Peak)</text>
+            <text class="axis-label axis-label-today" text-anchor="middle" x="666" y="240">Oct 24 (Today)</text>
+            <text class="axis-label axis-label-soft" text-anchor="middle" x="813" y="240">Oct 28</text>
+            <text class="axis-label axis-label-soft" text-anchor="middle" x="883" y="240">Oct 31</text>
+          </svg>
+          <!-- Dynamic Floating Tooltip -->
+          <div class="chart-tooltip" id="chartTooltip" hidden>
+            <div class="tooltip-top">
+              <span id="tooltipDate">Oct 20</span>
+              <span class="tooltip-badge" id="tooltipBadge">PEAK</span>
+            </div>
+            <div class="tooltip-main">
+              <span id="tooltipKwhValue">22.4 kWh</span>
+              <span class="tooltip-cost" id="tooltipCost">$3.35</span>
+            </div>
+            <div class="tooltip-sub">
+              <span>Submeter impulse count</span>
+              <span class="mono" id="tooltipImpulses">22,400 imp</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- THE METER CONFIGURATION SECTION -->
+    <div class="card">
+      <div class="section-head section-head-rule">
+        <div class="section-start">
+          <span class="section-icon icon-teal"><span class="material-symbols-outlined">tune</span></span>
+          <div>
+            <h2>Submeter Pulse Configuration</h2>
+            <p>Tune the optical / digital impulse constant stored in non-volatile flash</p>
+          </div>
+        </div>
+      </div>
+      <!-- Config Grid: Preset Buttons + Stepper + Real-Time Explanation -->
+      <div class="config-grid">
+        <!-- Left: Controls & Stepper -->
+        <div class="config-controls">
+          <label class="field-label" for="pulseConstantInput">
+            Submeter Pulse Constant (imp / kWh)
+          </label>
+          <!-- Quick Preset Buttons -->
+          <div class="preset-group">
+            <button class="preset-btn" data-value="800" type="button">800 imp/kWh</button>
+            <button class="preset-btn active" data-value="1000" type="button">1,000 imp/kWh (Standard)</button>
+            <button class="preset-btn" data-value="1600" type="button">1,600 imp/kWh</button>
+            <button class="preset-btn" data-value="2000" type="button">2,000 imp/kWh</button>
+          </div>
+          <!-- Numeric Input with +/- Stepper Buttons -->
+          <div class="stepper">
+            <div class="stepper-input">
+              <button id="decPulseBtn" type="button">
                 −
               </button>
-<input id="pulseConstantInput" max="10000" min="100" step="100" type="number" value="1000"/>
-<button id="incPulseBtn" type="button">
+              <input id="pulseConstantInput" max="10000" min="100" step="100" type="number" value="1000" />
+              <button id="incPulseBtn" type="button">
                 +
               </button>
-</div>
-<span class="muted">impulses / kWh</span>
-</div>
-<!-- Save to Flash Button with Instant Visual Feedback -->
-<div class="save-group">
-<button id="saveConfigBtn" type="button">
-<span class="material-symbols-outlined">save</span>
-<span>Save to ESP32 Flash / EEPROM</span>
-</button>
-<span class="save-status" id="saveStatus" hidden>
-<span class="material-symbols-outlined">check_circle</span>
-<span>Written to EEPROM successfully</span>
-</span>
-</div>
-</div>
-<!-- Right: Direct Clear Mathematical Tenant Explanation -->
-<div class="config-explanation">
-<p class="explanation-title teal">
-<span class="material-symbols-outlined">info</span>
-<span>How Your Submeter Calculates Energy</span>
-</p>
-<p class="explanation-body" id="formulaExplanation">
-          Each blink of the meter's LED or pulse output = 1 impulse. At <strong id="expPulseRate">1,000 imp/kWh</strong>, each blink precisely equals <strong id="expWhPerPulse">1.00 Wh</strong> (0.001 kWh).
-        </p>
-<div class="kv-panel mono">
-<div class="kv">
-<span>Energy per pulse:</span>
-<strong class="teal" id="pulseWhSummary">1.000 Wh</strong>
-</div>
-<div class="kv">
-<span>Sensor pin:</span>
-<span>GPIO 4 (Pull-Up)</span>
-</div>
-<div class="kv">
-<span>Flash memory address:</span>
-<span>0x3F00 (EEPROM)</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-<!-- UTILITY RATE CONFIGURATION SECTION -->
-<div class="card">
-<div class="section-head section-head-rule">
-<div class="section-start">
-<span class="section-icon icon-amber"><span class="material-symbols-outlined">paid</span></span>
-<div>
-<h2>Utility Rate Configuration</h2>
-<p>Set your electricity rate for accurate cost projections</p>
-</div>
-</div>
-</div>
-<!-- Config Grid: Preset Buttons + Stepper + Cost Explanation -->
-<div class="config-grid">
-<!-- Left: Controls & Stepper -->
-<div class="config-controls">
-<label class="field-label" for="rateInput">
-          Electricity Rate ($ / kWh)
-        </label>
-<!-- Quick Preset Buttons -->
-<div class="preset-group">
-<button class="rate-preset-btn" data-value="0.08" type="button">₱5.10</button>
-<button class="rate-preset-btn" data-value="0.10" type="button">₱8.10</button>
-<button class="rate-preset-btn active" data-value="0.12" type="button">₱12.10 (Standard)</button>
-<button class="rate-preset-btn" data-value="0.15" type="button">₱15.10</button>
-<button class="rate-preset-btn" data-value="0.20" type="button">₱24</button>
-</div>
-<!-- Numeric Input with +/- Stepper Buttons -->
-<div class="stepper">
-<div class="stepper-input">
-<button id="decRateBtn" type="button">
+            </div>
+            <span class="muted">impulses / kWh</span>
+          </div>
+          <!-- Save to Flash Button with Instant Visual Feedback -->
+          <div class="save-group">
+            <button id="saveConfigBtn" type="button">
+              <span class="material-symbols-outlined">save</span>
+              <span>Save to ESP32 Flash / EEPROM</span>
+            </button>
+            <span class="save-status" id="saveStatus" hidden>
+              <span class="material-symbols-outlined">check_circle</span>
+              <span>Written to EEPROM successfully</span>
+            </span>
+          </div>
+        </div>
+        <!-- Right: Direct Clear Mathematical Tenant Explanation -->
+        <div class="config-explanation">
+          <p class="explanation-title teal">
+            <span class="material-symbols-outlined">info</span>
+            <span>How Your Submeter Calculates Energy</span>
+          </p>
+          <p class="explanation-body" id="formulaExplanation">
+            Each blink of the meter's LED or pulse output = 1 impulse. At <strong id="expPulseRate">1,000
+              imp/kWh</strong>, each blink precisely equals <strong id="expWhPerPulse">1.00 Wh</strong> (0.001 kWh).
+          </p>
+          <div class="kv-panel mono">
+            <div class="kv">
+              <span>Energy per pulse:</span>
+              <strong class="teal" id="pulseWhSummary">1.000 Wh</strong>
+            </div>
+            <div class="kv">
+              <span>Sensor pin:</span>
+              <span>GPIO 4 (Pull-Up)</span>
+            </div>
+            <div class="kv">
+              <span>Flash memory address:</span>
+              <span>0x3F00 (EEPROM)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- UTILITY RATE CONFIGURATION SECTION -->
+    <div class="card">
+      <div class="section-head section-head-rule">
+        <div class="section-start">
+          <span class="section-icon icon-amber"><span class="material-symbols-outlined">paid</span></span>
+          <div>
+            <h2>Utility Rate Configuration</h2>
+            <p>Set your electricity rate for accurate cost projections</p>
+          </div>
+        </div>
+      </div>
+      <!-- Config Grid: Preset Buttons + Stepper + Cost Explanation -->
+      <div class="config-grid">
+        <!-- Left: Controls & Stepper -->
+        <div class="config-controls">
+          <label class="field-label" for="rateInput">
+            Electricity Rate ($ / kWh)
+          </label>
+          <!-- Quick Preset Buttons -->
+          <div class="preset-group">
+            <button class="rate-preset-btn" data-value="0.08" type="button">₱5.10</button>
+            <button class="rate-preset-btn" data-value="0.10" type="button">₱8.10</button>
+            <button class="rate-preset-btn active" data-value="0.12" type="button">₱12.10 (Standard)</button>
+            <button class="rate-preset-btn" data-value="0.15" type="button">₱15.10</button>
+            <button class="rate-preset-btn" data-value="0.20" type="button">₱24</button>
+          </div>
+          <!-- Numeric Input with +/- Stepper Buttons -->
+          <div class="stepper">
+            <div class="stepper-input">
+              <button id="decRateBtn" type="button">
                 −
               </button>
-<input id="rateInput" max="25.00" min="1" step="1.0" type="number" value="12.5"/>
-<button id="incRateBtn" type="button">
+              <input id="rateInput" max="25.00" min="1" step="1.0" type="number" value="12.5" />
+              <button id="incRateBtn" type="button">
                 +
               </button>
-</div>
-<span class="muted">dollars / kWh</span>
-</div>
-<!-- Save Rate Button -->
-<div class="save-group">
-<button id="saveRateBtn" type="button">
-<span class="material-symbols-outlined">save</span>
-<span>Save Rate to ESP32 Flash / EEPROM</span>
-</button>
-<span class="save-status" id="rateSaveStatus" hidden>
-<span class="material-symbols-outlined">check_circle</span>
-<span>Rate written to EEPROM successfully</span>
-</span>
-</div>
-</div>
-<!-- Right: Cost Calculation Explanation -->
-<div class="config-explanation">
-<p class="explanation-title amber">
-<span class="material-symbols-outlined">calculate</span>
-<span>How Cost Is Calculated</span>
-</p>
-<p class="explanation-body" id="rateExplanation">
-          At <strong id="rateDisplay">$0.12/kWh</strong>, each impulse costs <strong id="costPerPulse">$0.00012</strong> based on your pulse constant.
-        </p>
-<div class="kv-panel mono">
-<div class="kv">
-<span>Cost per impulse:</span>
-<strong class="amber" id="costPerImpulse">$0.00012</strong>
-</div>
-<div class="kv">
-<span>Cost per hour (1.4 kW):</span>
-<strong class="amber" id="costPerHour">$0.168</strong>
-</div>
-<div class="kv">
-<span>Projected month-end:</span>
-<strong class="amber" id="projectedCost">$68.20</strong>
-</div>
-<div class="kv">
-<span>Flash memory address:</span>
-<span>0x3F04 (EEPROM)</span>
-</div>
-</div>
-</div>
-</div>
-</div>
-</main>
-<!-- First-Time User Onboarding Popup (Pico modal dialog) -->
-<dialog id="onboardingDialog">
-<article>
-<header>
-<button aria-label="Close" class="close" id="onboardCloseX" type="button"></button>
-<strong>Welcome to Wattrack</strong>
-</header>
-<p>Wattrack counts the pulse signals from your non-invasive submeter and turns them into live kWh and cost estimates — all processed locally on the ESP32.</p>
-<ul class="onboard-list">
-<li>Live power, usage and month-end projections</li>
-<li>Pulse constant &amp; utility rate saved to ESP32 flash</li>
-<li>No cloud account — everything stays on your LAN</li>
-</ul>
-<p class="onboard-question">Have you used Wattrack with this meter before?</p>
-<footer>
-<button id="onboardNewBtn" type="button">Set up a new meter</button>
-<button class="secondary" id="onboardExistingBtn" type="button">I already have data</button>
-</footer>
-</article>
-</dialog>
-<script src="script.js"></script>
+            </div>
+            <span class="muted">dollars / kWh</span>
+          </div>
+          <!-- Save Rate Button -->
+          <div class="save-group">
+            <button id="saveRateBtn" type="button">
+              <span class="material-symbols-outlined">save</span>
+              <span>Save Rate to ESP32 Flash / EEPROM</span>
+            </button>
+            <span class="save-status" id="rateSaveStatus" hidden>
+              <span class="material-symbols-outlined">check_circle</span>
+              <span>Rate written to EEPROM successfully</span>
+            </span>
+          </div>
+        </div>
+        <!-- Right: Cost Calculation Explanation -->
+        <div class="config-explanation">
+          <p class="explanation-title amber">
+            <span class="material-symbols-outlined">calculate</span>
+            <span>How Cost Is Calculated</span>
+          </p>
+          <p class="explanation-body" id="rateExplanation">
+            At <strong id="rateDisplay">$0.12/kWh</strong>, each impulse costs <strong
+              id="costPerPulse">$0.00012</strong> based on your pulse constant.
+          </p>
+          <div class="kv-panel mono">
+            <div class="kv">
+              <span>Cost per impulse:</span>
+              <strong class="amber" id="costPerImpulse">$0.00012</strong>
+            </div>
+            <div class="kv">
+              <span>Cost per hour (1.4 kW):</span>
+              <strong class="amber" id="costPerHour">$0.168</strong>
+            </div>
+            <div class="kv">
+              <span>Projected month-end:</span>
+              <strong class="amber" id="projectedCost">$68.20</strong>
+            </div>
+            <div class="kv">
+              <span>Flash memory address:</span>
+              <span>0x3F04 (EEPROM)</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+  <!-- First-Time User Onboarding Popup (Pico modal dialog) -->
+  <dialog id="onboardingDialog">
+    <article>
+      <header>
+        <button aria-label="Close" class="close" id="onboardCloseX" type="button"></button>
+        <strong>Welcome to Wattrack</strong>
+      </header>
+      <p>Wattrack counts the pulse signals from your non-invasive submeter and turns them into live kWh and cost
+        estimates — all processed locally on the ESP32.</p>
+      <ul class="onboard-list">
+        <li>Live power, usage and month-end projections</li>
+        <li>Pulse constant &amp; utility rate saved to ESP32 flash</li>
+        <li>No cloud account — everything stays on your LAN</li>
+      </ul>
+      <p class="onboard-question">Have you used Wattrack with this meter before?</p>
+      <footer>
+        <button id="onboardNewBtn" type="button">Set up a new meter</button>
+        <button class="secondary" id="onboardExistingBtn" type="button">I already have data</button>
+      </footer>
+    </article>
+  </dialog>
+  <script src="script.js"></script>
 </body>
+
 </html>

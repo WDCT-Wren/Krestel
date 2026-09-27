@@ -28,14 +28,14 @@ document.addEventListener('DOMContentLoaded', () => {
   try {
     var savedTheme = localStorage.getItem(THEME_KEY);
     if (savedTheme) updateThemeUI(savedTheme === 'dark');
-  } catch (e) {}
+  } catch (e) { }
 
   if (themeBtn) {
     themeBtn.addEventListener('click', () => {
       var isDark = htmlElem.getAttribute('data-theme') !== 'light';
       var next = !isDark;
       updateThemeUI(next);
-      try { localStorage.setItem(THEME_KEY, next ? 'dark' : 'light'); } catch (e) {}
+      try { localStorage.setItem(THEME_KEY, next ? 'dark' : 'light'); } catch (e) { }
     });
   }
 
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
       var target = el.tagName.toLowerCase() === 'circle' ? el : el.querySelector('rect');
       if (target) {
         x = parseFloat(target.getAttribute('cx') || target.getAttribute('x')) +
-            parseFloat(target.getAttribute('r') ? target.getAttribute('r') : (parseFloat(target.getAttribute('width') || 0) / 2));
+          parseFloat(target.getAttribute('r') ? target.getAttribute('r') : (parseFloat(target.getAttribute('width') || 0) / 2));
         y = parseFloat(target.getAttribute('cy') || target.getAttribute('y'));
       }
 
@@ -305,7 +305,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (newBtn) {
     newBtn.addEventListener('click', () => {
-      try { localStorage.setItem(SETUP_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(SETUP_KEY, '1'); } catch (e) { }
       closeOnboarding();
       if (baselineSection) {
         baselineSection.hidden = false;
@@ -316,7 +316,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   if (existingBtn) {
     existingBtn.addEventListener('click', () => {
-      try { localStorage.setItem(SETUP_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(SETUP_KEY, '1'); } catch (e) { }
       closeOnboarding();
     });
   }
@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // doesn't nag on every reload.
   if (dialog) {
     dialog.addEventListener('close', () => {
-      try { localStorage.setItem(SETUP_KEY, '1'); } catch (e) {}
+      try { localStorage.setItem(SETUP_KEY, '1'); } catch (e) { }
     });
     // First visit (or revisit before answering): show the popup
     if (!localStorage.getItem(SETUP_KEY)) {
@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       // Persist locally as an offline-safe fallback
-      try { localStorage.setItem('wattrack-reading', JSON.stringify(payload)); } catch (err) {}
+      try { localStorage.setItem('wattrack-reading', JSON.stringify(payload)); } catch (err) { }
 
       // POST to the ESP32 so it can store the baseline in flash/EEPROM.
       // The firmware currently returns 404 for unknown routes — a future
@@ -401,7 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
       baselineUnit.value = r.unit;
       baselineDate.value = r.date;
     }
-  } catch (err) {}
+  } catch (err) { }
 
   // Restore saved pulse constant / rate if present
   try {
@@ -409,7 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (savedPulse && pulseInput) pulseInput.value = savedPulse;
     var savedRate = localStorage.getItem(RATE_KEY);
     if (savedRate && rateInput) rateInput.value = savedRate;
-  } catch (err) {}
+  } catch (err) { }
 
   // ==========================================
   // 8. Save buttons — POST config to ESP32 + visual feedback
@@ -435,9 +435,9 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pulseConstant: parseInt(pulseInput.value, 10) || 1000 })
-      }).catch(() => {});
+      }).catch(() => { });
 
-      try { localStorage.setItem(PULSE_KEY, pulseInput.value); } catch (err) {}
+      try { localStorage.setItem(PULSE_KEY, pulseInput.value); } catch (err) { }
 
       setTimeout(() => {
         saveBtn.disabled = false;
@@ -460,9 +460,9 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rate: parseFloat(rateInput.value) || 11.5 })
-      }).catch(() => {});
+      }).catch(() => { });
 
-      try { localStorage.setItem(RATE_KEY, rateInput.value); } catch (err) {}
+      try { localStorage.setItem(RATE_KEY, rateInput.value); } catch (err) { }
 
       setTimeout(() => {
         saveRateBtn.disabled = false;
@@ -490,7 +490,40 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
-  // ==========================================
-  // 10. fetch the metrics from ESP32
-  // ==========================================
+// ==========================================
+// 10. fetch the metrics from ESP32
+// ==========================================
 
+async function updateMetrics() {
+  try {
+    const response = await fetch('/api/metrics');
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${response.status}`);
+    }
+
+    const metrics = await response.json();
+
+    const kwhElement = document.getElementById('powerNowValue');
+    const wattElement = document.getElementById('powerNowWatts');
+
+    const pulseElement = document.getElementById('pulseDisplay');
+
+    if (kwhElement) {
+      kwhElement.textContent = Number(metrics.kwh).toFixed(2);
+    }
+
+    if (wattElement) {
+      wattElement.textContent = Number(metrics.kwh * 1000);
+    }
+
+    if (pulseElement) {
+      pulseElement.textContent = `${metrics.pulses} pulses`;
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+updateMetrics();
+setInterval(updateMetrics, 750);
