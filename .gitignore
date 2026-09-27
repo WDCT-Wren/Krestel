@@ -6,3 +6,6 @@
 src/web/credentials.h
 
 .idea
+
+# Project TODO list — not part of the firmware
+TODO.md
