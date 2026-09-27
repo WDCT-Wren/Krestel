@@ -527,3 +527,25 @@ async function updateMetrics() {
 
 updateMetrics();
 setInterval(updateMetrics, 750);
+
+// ==========================================
+// 11. fetch IP address of esp32 
+// ==========================================
+
+function updateIPAddress() {
+  fetch('/api/ip_address')
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`failed to fetch /api/ip_address`);
+      }
+      return response.text();
+    })
+    .then(data =>{
+      document.getElementById("ip_address").textContent = data;
+    })
+    .catch(error => {
+      console.error(error);
+      document.getElementById("ip_address").textContent = 'Error';
+    });
+};
+updateIPAddress();
