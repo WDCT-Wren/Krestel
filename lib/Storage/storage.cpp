@@ -1,32 +1,30 @@
 #include "storage.h"
 
+Preferences preferences;
+
 void initStorage() {
-    if (!EEPROM.begin(EEPROM_PULSE_ADDR + sizeof(unsigned long))) {
-        Serial.println("EEPROM initialization failed");
+    if (!preferences.begin("sensorData", false)) {
+        Serial.println("Storage initialization failed");
         return;
     }
 
-    uint8_t flag;
-    EEPROM.get(EEPROM_INIT_ADDR, flag);
+    uint32_t flag = preferences.getUInt("magicFlag", 0);
 
-    Serial.print("Expected magic: 0x");
-    Serial.println(EEPROM_INIT_MAGIC, HEX);
-
-    Serial.print("Stored flag: 0x");
-    Serial.println(flag, HEX);
-
-    if (flag != EEPROM_INIT_MAGIC) {
+    // Detects new flash storage
+    if (flag != PREF_INIT_MAGIC) {
         Serial.println("New storage");
 
         totalPulses = 0;
         pulseConstant = DEFAULT_PULSE_CONSTANT; // default pulse constant if none was read
         const unsigned long initialPulseCount = totalPulses;
-        EEPROM.put(EEPROM_PULSE_ADDR, initialPulseCount);
-        EEPROM.put(EEPROM_CONSTANT_ADDR, pulseConstant);
-        EEPROM.put(EEPROM_INIT_ADDR, EEPROM_INIT_MAGIC);
-        EEPROM.commit();
+        
+        preferences.putULong("totalPulses", totalPulses);
+        preferences.putUShort("pulseConstant", pulseConstant);
+
+        preferences.putUInt("magicFlag", PREF_INIT_MAGIC);
     } else {
         totalPulses = readSavedPulseCount();
+        pulseConstant = readSavedPulseConstant();
 
         Serial.print("Loaded pulses: ");
         Serial.println(totalPulses);
@@ -36,23 +34,17 @@ void initStorage() {
 }
 
 void savePulseCount(unsigned long pulseCount) {
-    EEPROM.put(EEPROM_PULSE_ADDR, pulseCount);
-    EEPROM.commit();
+    preferences.putULong("totalPulses", pulseCount);
 }
 
 unsigned long readSavedPulseCount() {
-    unsigned long savedTotalPulse = 0;
-    EEPROM.get(EEPROM_PULSE_ADDR, savedTotalPulse);
-    return savedTotalPulse;
+    return preferences.getULong("totalPulses", 0);
 }
 
 void savePulseConstant(uint16_t pulseConstant) {
-    EEPROM.put(EEPROM_CONSTANT_ADDR, pulseConstant);
-    EEPROM.commit();
+    preferences.putUShort("pulseConstant", pulseConstant);
 }
 
 uint16_t readSavedPulseConstant() {
-    uint16_t pulseconstant = 1000;
-    EEPROM.get(EEPROM_CONSTANT_ADDR, pulseconstant);
-    return pulseconstant;
+    return preferences.getULong("pulseConstant", 1000);
 }
