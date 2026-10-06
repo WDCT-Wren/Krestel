@@ -9,6 +9,7 @@ double safeKwhRead = 0;
 double safeEstimateReading = 0;
 
 uint16_t pulseConstant = DEFAULT_PULSE_CONSTANT; //default
+float utilityRate = DEFAULT_RATE;
 
 /**
  * Initializes the sensor as an input as well as attatching it into an interrupt.
