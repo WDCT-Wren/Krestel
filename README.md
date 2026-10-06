@@ -1,6 +1,6 @@
-# Wattrack — Non-Invasive Energy Submeter
+# Krestel — Non-Invasive Energy Submeter
 
-**Wattrack** is an Arduino/ESP32-based energy monitoring system that tracks electrical consumption through a non-invasive pulse sensor, computes kilowatt-hour totals from pulse counts, and exposes a live dashboard via a built-in web interface.
+**Krestel** is an Arduino/ESP32-based energy monitoring system that tracks electrical consumption through a non-invasive pulse sensor, computes kilowatt-hour totals from pulse counts, and exposes a live dashboard via a built-in web interface.
 
 ---
 
@@ -23,7 +23,7 @@
 
 ## Overview
 
-Wattrack hooks into the pulse output of a utility-grade energy sensor (or a simulated pulse source during testing). Each pulse represents a fixed fraction of a kilowatt-hour (default: 1 pulse per 1/1600 kWh). The firmware:
+Krestel hooks into the pulse output of a utility-grade energy sensor (or a simulated pulse source during testing). Each pulse represents a fixed fraction of a kilowatt-hour (default: 1 pulse per 1/1600 kWh). The firmware:
 
 1. Counts pulses via a hardware interrupt.
 2. Debounces spurious edges.
