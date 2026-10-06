@@ -13,7 +13,7 @@ extern volatile unsigned long totalPulses;
 
 extern double safeKwhRead;
 extern uint16_t pulseConstant;
-extern uint8_t utilityRate;
+extern float utilityRate;
 
 void readPulse();
 void initSensor();
