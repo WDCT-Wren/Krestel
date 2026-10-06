@@ -6,7 +6,11 @@ static AsyncWebServer server(WEB_SERVER_PORT);
 // Method that connects the esp32 to the wifi connection to serve a website for devices connected to the same wifi.
 static void connectWiFi() {
   Serial.printf("[WiFi] Connecting to %s", WIFI_SSID);
+
+  WiFi.persistent(false);
+
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
 
   int attempts = 0;
   while (WiFiClass::status() != WL_CONNECTED && attempts < 40) {
@@ -27,7 +31,7 @@ static void connectWiFi() {
   }
 }
 
-// JSON helpers
+// Helper function to give data from server to web dashbaord
 
 /**
  * JSON helper for capturing sensor data such as:
