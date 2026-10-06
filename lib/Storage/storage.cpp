@@ -29,4 +29,4 @@ void savePulseConstant(uint16_t pulseConstant) { preferences.putUShort("pulseCon
 uint16_t readSavedPulseConstant(){ return preferences.getUShort("pulseConstant", 1000);}
 
 void saveUtilityRate(float utilityRate) { preferences.putFloat("utilityRate", utilityRate);}
-float readSavedUtilityRate() { preferences.getFloat("utilityRate", 10);}
+float readSavedUtilityRate() { return preferences.getFloat("utilityRate", 10);}
