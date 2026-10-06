@@ -434,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
       fetch('/api/pulse-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pulseConstant: parseInt(pulseInput.value, 10) || 1000 })
+        body: JSON.stringify({ pulseConstant: parseInt(pulseConstantInput.value, 10) || 1000 })
       }).catch(() => { });
 
       try { localStorage.setItem(PULSE_KEY, pulseInput.value); } catch (err) { }
@@ -524,9 +524,13 @@ async function updateMetrics() {
     console.error(error);
   }
 }
-
 updateMetrics();
-setInterval(updateMetrics, 750);
+
+async function pollMetrics() {
+  await updateMetrics();
+  setTimeout(pollMetrics, 2000);
+}
+pollMetrics();
 
 // ==========================================
 // 11. fetch IP address of esp32 
