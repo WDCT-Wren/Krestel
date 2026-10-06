@@ -12,5 +12,6 @@ void loop() {
   pulseLED();
 
   updateSafeKwh();
+  updateSafeRate();
   savePulseCount(totalPulses);
 }

@@ -6,6 +6,8 @@ volatile unsigned long rawFires = 0;
 volatile unsigned long totalPulses = 0;
 
 double safeKwhRead = 0;
+double safeEstimateReading = 0;
+
 uint16_t pulseConstant = DEFAULT_PULSE_CONSTANT; //default
 
 /**
@@ -24,6 +26,12 @@ void initSensor() {
 void updateSafeKwh() {
   noInterrupts();
   safeKwhRead = static_cast<double>(totalPulses) / pulseConstant;
+  interrupts();
+}
+
+void updateSafeRate() {
+  noInterrupts();
+  safeEstimateReading = static_cast<double>(utilityRate) * safeKwhRead;
   interrupts();
 }
 
