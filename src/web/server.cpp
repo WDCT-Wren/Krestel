@@ -65,31 +65,57 @@ static void handleIPAdress(AsyncWebServerRequest * request) {
 }
 
 /**
- * Recieves pulse config data for configurable pulse constant as well as rate
+ * Recieves pulse config data for configurable pulse constant 
  */
-static void handlePulseConfigPOST(AsyncWebServerRequest * request) {
-    const AsyncWebParameter *param = request->getParam("pulse-config", true);
+static void handlePulseConfig(AsyncWebServerRequest * request) {
+  const AsyncWebParameter *param = request->getParam("pulse-config", true);
 
-    // getParam returns nullptr when the POST body has no matching parameter.
-    // Never dereference it without checking, or the ESP32 panics.
-    if (param == nullptr) {
-      request->send(400, "text/plain", "Missing 'pulse-config' parameter");
-      return;
-    }
+  // Never dereference it without checking, or the ESP32 panics.
+  if (param == nullptr) {
+    request->send(400, "text/plain", "Missing 'pulse-config' parameter");
+    return;
+  }
 
-    uint16_t newPulseConfig = (uint16_t)param->value().toInt();
+  uint16_t newPulseConfig = (uint16_t)param->value().toInt();
 
-    if (newPulseConfig == 0) {
-      request->send(400, "text/plain", "Invalid 'pulse-config' value");
-      return;
-    }
+  if (newPulseConfig == 0) {
+    request->send(400, "text/plain", "Invalid 'pulse-config' value");
+    return;
+  }
 
-    pulseConstant = newPulseConfig;
-    savePulseConstant(newPulseConfig);
+  pulseConstant = newPulseConfig;
+  savePulseConstant(newPulseConfig);
 
-    Serial.printf("[Web] New pulse config: %u\n", newPulseConfig);
+  Serial.printf("[Web] New pulse config: %u\n", newPulseConfig);
 
-    request->send(200, "text/plain", "OK");
+  request->send(200, "text/plain", "OK");
+}
+
+/**
+ * Recieves utility rate from configurable utility rate
+ */
+static void handleUtilityRateConfig(AsyncWebServerRequest * request) {
+  const AsyncWebParameter *param = request->getParam("rate-config", true);
+
+  // Never dereference it without checking, or the ESP32 panics.
+  if (param == nullptr) {
+    request->send(400, "text/plain", "Missing 'rate-config' parameter");
+    return;
+  }
+
+  float newUtilityRate = param->value().toFloat();
+
+  if (newUtilityRate == 0) {
+    request->send(400, "text/plain", "Invalid 'rate-config' value");
+    return;
+  }
+
+  utilityRate = newUtilityRate;
+  saveUtilityRate(newUtilityRate);
+
+  Serial.printf("[Web] New Utility Rate: %.2f\n", newUtilityRate);
+
+  request->send(200, "text/plain", "OK");
 }
 
 // Server setup
@@ -119,7 +145,8 @@ void initWebServer() {
   // API endpoints
   server.on("/api/metrics", HTTP_GET, handleMetrics);
   server.on("/api/ip_address", HTTP_GET, handleIPAdress);
-  server.on("/api/pulse-config", HTTP_POST, handlePulseConfigPOST);
+  server.on("/api/pulse-config", HTTP_POST, handlePulseConfig);
+  server.on("/api/rate-config", HTTP_POST, handleUtilityRateConfig);
 
   // Daily usage chart
   // TODO: implement daily usage chart response

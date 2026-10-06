@@ -431,9 +431,10 @@ document.addEventListener('DOMContentLoaded', () => {
       saveBtn.disabled = true;
       saveBtn.innerHTML = '<span class="spin">⏳</span><span>Writing EEPROM...</span>';
 
-      // The firmware reads this as a form field named "pulse-config", so the
-      // body must be urlencoded — a bare text/plain number is ignored and the
-      // request reaches the handler with no parameter.
+      /** The firmware reads this as a form field named "pulse-config", so the
+       * body must be urlencoded — a bare text/plain number is ignored and the
+       * request reaches the handler with no parameter.
+       */
       fetch('/api/pulse-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -457,13 +458,12 @@ document.addEventListener('DOMContentLoaded', () => {
       saveRateBtn.disabled = true;
       saveRateBtn.innerHTML = '<span class="spin">⏳</span><span>Writing EEPROM...</span>';
 
+      // Same pattern as the pulse config just for the rate of the utility
       fetch('/api/rate-config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rate: parseFloat(rateInput.value) || 11.5 })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'rate-config=' + encodeURIComponent(parseFloat(rateInput.value, 10) || 11.5)
       }).catch(() => { });
-
-      try { localStorage.setItem(RATE_KEY, rateInput.value); } catch (err) { }
 
       setTimeout(() => {
         saveRateBtn.disabled = false;
