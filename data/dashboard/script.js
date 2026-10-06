@@ -431,13 +431,14 @@ document.addEventListener('DOMContentLoaded', () => {
       saveBtn.disabled = true;
       saveBtn.innerHTML = '<span class="spin">⏳</span><span>Writing EEPROM...</span>';
 
+      // The firmware reads this as a form field named "pulse-config", so the
+      // body must be urlencoded — a bare text/plain number is ignored and the
+      // request reaches the handler with no parameter.
       fetch('/api/pulse-config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pulseConstant: parseInt(pulseConstantInput.value, 10) || 1000 })
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: 'pulse-config=' + encodeURIComponent(parseInt(pulseInput.value, 10) || 1000)
       }).catch(() => { });
-
-      try { localStorage.setItem(PULSE_KEY, pulseInput.value); } catch (err) { }
 
       setTimeout(() => {
         saveBtn.disabled = false;

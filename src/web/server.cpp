@@ -10,7 +10,7 @@ static void connectWiFi() {
   WiFi.persistent(false);
 
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-
+  
 
   int attempts = 0;
   while (WiFiClass::status() != WL_CONNECTED && attempts < 40) {
@@ -64,6 +64,34 @@ static void handleIPAdress(AsyncWebServerRequest * request) {
   request->send(200, "text/plain", WiFi.localIP().toString().c_str());
 }
 
+/**
+ * Recieves pulse config data for configurable pulse constant as well as rate
+ */
+static void handlePulseConfigPOST(AsyncWebServerRequest * request) {
+    const AsyncWebParameter *param = request->getParam("pulse-config", true);
+
+    // getParam returns nullptr when the POST body has no matching parameter.
+    // Never dereference it without checking, or the ESP32 panics.
+    if (param == nullptr) {
+      request->send(400, "text/plain", "Missing 'pulse-config' parameter");
+      return;
+    }
+
+    uint16_t newPulseConfig = (uint16_t)param->value().toInt();
+
+    if (newPulseConfig == 0) {
+      request->send(400, "text/plain", "Invalid 'pulse-config' value");
+      return;
+    }
+
+    pulseConstant = newPulseConfig;
+    savePulseConstant(newPulseConfig);
+
+    Serial.printf("[Web] New pulse config: %u\n", newPulseConfig);
+
+    request->send(200, "text/plain", "OK");
+}
+
 // Server setup
 
 void initWebServer() {
@@ -91,6 +119,7 @@ void initWebServer() {
   // API endpoints
   server.on("/api/metrics", HTTP_GET, handleMetrics);
   server.on("/api/ip_address", HTTP_GET, handleIPAdress);
+  server.on("/api/pulse-config", HTTP_POST, handlePulseConfigPOST);
 
   // Daily usage chart
   // TODO: implement daily usage chart response
