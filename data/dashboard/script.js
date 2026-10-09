@@ -1,4 +1,4 @@
-/* Wattrack dashboard script in Pico CSS 
+/* Krestel dashboard script in Pico CSS 
      1. Dark/light theme toggle (Pico data-theme, persisted)
      2. Timeframe switcher
      3. SVG chart tooltip
@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', () => {
   var htmlElem = document.documentElement;
   var themeBtn = document.getElementById('themeToggleBtn');
   var themeText = document.getElementById('themeToggleText');
-  var THEME_KEY = 'wattrack-theme';
+  var THEME_KEY = 'Krestel-theme';
 
   function updateThemeUI(isDark) {
     htmlElem.setAttribute('data-theme', isDark ? 'dark' : 'light');
@@ -292,9 +292,9 @@ document.addEventListener('DOMContentLoaded', () => {
   var closeX = document.getElementById('onboardCloseX');
   var baselineSection = document.getElementById('baselineSection');
 
-  var SETUP_KEY = 'wattrack-onboarded';
-  var PULSE_KEY = 'wattrack-pulse';
-  var RATE_KEY = 'wattrack-rate';
+  var SETUP_KEY = 'Krestel-onboarded';
+  var PULSE_KEY = 'Krestel-pulse';
+  var RATE_KEY = 'Krestel-rate';
 
   function showOnboarding() {
     if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
@@ -338,7 +338,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 7. Baseline reading form (first-time setup section)
+  // 7. First time user (Onboarding)
   // ==========================================
   var baselineForm = document.getElementById('baselineForm');
   var baselineValue = document.getElementById('baselineValue');
@@ -394,7 +394,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Restore saved values from a previous session (local mirror)
   try {
-    var savedReading = localStorage.getItem('wattrack-reading');
+    var savedReading = localStorage.getItem('Krestel-reading');
     if (savedReading && baselineValue) {
       var r = JSON.parse(savedReading);
       baselineValue.value = r.value;
