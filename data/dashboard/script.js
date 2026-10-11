@@ -54,39 +54,39 @@ document.addEventListener('DOMContentLoaded', () => {
   var dataByTimeframe = {
     today: {
       title: 'Used Today (Live)',
-      value: '16.8',
-      sub: 'Updated 10s ago • 16.8 kWh since midnight',
-      avg: '1.40 kWh / hour',
-      proj: '₱27.60 (Today)',
+      value: '--',
+      sub: '--',
+      avg: '--',
+      proj: '--',
       chartTitle: "Today's Hourly Energy & Live Pulses",
-      badge: 'Today, Oct 24'
+      badge: '--'
     },
     week: {
       title: 'Used This Week',
-      value: '118',
-      sub: 'Mon - Thu • 4 days recorded',
-      avg: '29.5 kWh / day',
-      proj: '₱204.60 (Week)',
+      value: '--',
+      sub: '--',
+      avg: '--',
+      proj: '--',
       chartTitle: 'Weekly Daily Load Profile & Heatmap',
-      badge: 'Week 43, 2024'
+      badge: '--'
     },
     month: {
       title: 'Used This Month',
-      value: '285',
-      sub: 'Day 18 of 30 in lease billing cycle',
-      avg: '15.8 kWh / day',
-      proj: '₱789.30',
+      value: '--',
+      sub: '--',
+      avg: '--',
+      proj: '--',
       chartTitle: 'Daily Energy Usage & Heatmap Spend Profile',
-      badge: 'October 2024'
+      badge: '--'
     },
     billing: {
       title: 'Current Billing Cycle',
-      value: '285',
-      sub: 'Cycle Ends Nov 1 • 12 days remaining',
-      avg: '15.8 kWh / day',
-      proj: '₱789.30 EST',
+      value: '--',
+      sub: '--',
+      avg: '--',
+      proj: '--',
       chartTitle: 'Cycle Energy Usage & Month-End Forecast',
-      badge: 'Cycle #10 - Oct/Nov'
+      badge: '--'
     }
   };
 
