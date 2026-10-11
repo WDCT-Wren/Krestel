@@ -39,7 +39,7 @@ void updateSafeRate() {
 /*
   reads and detects pulses of light from the photodiode
 */
-void IRAM_ATTR readPulse() {
+void readPulse() {
   unsigned long now = millis();
   rawFires++;
 
