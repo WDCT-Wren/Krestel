@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', () => {
   ratePresetBtns.forEach((btn) => {
     btn.addEventListener('click', () => {
       rateInput.value = btn.dataset.value;
-      updateRateCalculations(btn.dataset.value);
+      rateInput.dispatchEvent(new Event('input', { bubbles: true }));
     });
   });
 
@@ -579,4 +579,8 @@ async function fetchConfig() {
     console.error(error);
   }
 };
-fetchConfig();
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', fetchConfig, { once: true });
+} else {
+  fetchConfig();
+}
