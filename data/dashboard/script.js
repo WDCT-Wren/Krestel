@@ -426,7 +426,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
+    saveBtn.addEventListener('click', async () => {
       var originalContent = saveBtn.innerHTML;
       saveBtn.disabled = true;
       saveBtn.innerHTML = '<span class="spin">⏳</span><span>Writing EEPROM...</span>';
@@ -435,44 +435,63 @@ document.addEventListener('DOMContentLoaded', () => {
        * body must be urlencoded — a bare text/plain number is ignored and the
        * request reaches the handler with no parameter.
        */
-      fetch('/api/pulse-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'pulse-config=' + encodeURIComponent(parseInt(pulseInput.value, 10) || 1000)
-      }).catch(() => { });
+      try {
+        const response = await fetch('/api/pulse-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'pulse-config=' + encodeURIComponent(parseInt(pulseInput.value, 10) || 1000),
+          signal: AbortSignal.timeout(5000)
+        });
 
-      setTimeout(() => {
-        saveBtn.disabled = false;
+        if (!response.ok) {
+          const msg = await response.text();
+          throw new Error(msg || `Error ${response.status}`);
+        }
+
         saveBtn.innerHTML = '<span>✔ Saved!</span>';
+      } catch (err) {
+        saveBtn.innerHTML = '<span>✕ Failed!</span>';
+        console.Error(err)
+      } finally {
+        saveBtn.disabled = false;
         flashSaveStatus(saveStatus);
         setTimeout(() => {
           saveBtn.innerHTML = originalContent;
         }, 1600);
-      }, 700);
+      }
     });
   }
 
   if (saveRateBtn) {
-    saveRateBtn.addEventListener('click', () => {
+    saveRateBtn.addEventListener('click', async () => {
       var originalContent = saveRateBtn.innerHTML;
       saveRateBtn.disabled = true;
       saveRateBtn.innerHTML = '<span class="spin">⏳</span><span>Writing EEPROM...</span>';
 
-      // Same pattern as the pulse config just for the rate of the utility
-      fetch('/api/rate-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: 'rate-config=' + encodeURIComponent(parseFloat(rateInput.value, 10) || 11.5)
-      }).catch(() => { });
+      try {
+        const response = await fetch('/api/rate-config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: 'rate-config=' + encodeURIComponent(parseFloat(rateInput.value, 10) || 11.5),
+          signal: AbortSignal.timeout(5000)
+        });
 
-      setTimeout(() => {
-        saveRateBtn.disabled = false;
+        if (!response.ok) {
+          const msg = await response.text();
+          throw new Error(msg || `Error ${response.status}`);
+        }
+
         saveRateBtn.innerHTML = '<span>✔ Saved!</span>';
+      } catch (err) {
+        saveRateBtn.innerHTML = '<span>✕ Failed!</span>';
+        console.error(err);
+      } finally {
+        saveRateBtn.disabled = false;
         flashSaveStatus(rateSaveStatus);
         setTimeout(() => {
           saveRateBtn.innerHTML = originalContent;
         }, 1600);
-      }, 700);
+      }
     });
   }
 
