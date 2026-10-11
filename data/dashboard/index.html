@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Wattrack - ESP32 Local Energy Monitor</title>
+  <title>Krestel - ESP32 Local Energy Monitor</title>
   <link href="https://fonts.googleapis.com" rel="preconnect" />
   <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
   <link
@@ -20,7 +20,7 @@
     <nav class="app-nav container">
       <ul>
         <li><span class="brand-badge"><span class="material-symbols-outlined">bolt</span></span></li>
-        <li><strong>Wattrack</strong> <span class="pill pill-teal">ESP32 Local</span></li>
+        <li><strong>Krestel</strong> <span class="pill pill-teal">ESP32 Local</span></li>
       </ul>
       <ul>
         <!-- IP / Link Status Pill -->
@@ -57,7 +57,7 @@
           <span class="section-icon icon-amber"><span class="material-symbols-outlined">straighten</span></span>
           <div>
             <h2>First-Time Setup: Baseline Reading</h2>
-            <p>Log the meter reading right now so Wattrack can compare absolute consumption later</p>
+            <p>Log the meter reading right now so Krestel can compare absolute consumption later</p>
           </div>
         </div>
       </div>
@@ -68,10 +68,7 @@
               type="number" />
           </label>
           <label for="baselineUnit">Unit
-            <select id="baselineUnit" name="baselineUnit">
-              <option value="kWh">kWh</option>
-              <option value="Wh">Wh</option>
-            </select>
+            
           </label>
           <label for="baselineDate">Reading date
             <input id="baselineDate" name="baselineDate" required type="date" />
@@ -104,7 +101,7 @@
           </div>
           <div class="guide-item">
             <strong>Recheck later</strong>
-            <p>A second reading a day later lets you compare meter-reported usage against Wattrack's pulse count.</p>
+            <p>A second reading a day later lets you compare meter-reported usage against Krestel's pulse count.</p>
           </div>
         </div>
         <p class="guide-note">The baseline is kept locally in this browser and posted to the ESP32 once a firmware
@@ -135,7 +132,7 @@
       <!-- Column 1: Power Now -->
       <div class="card metric-card">
         <div class="card-head">
-          <span class="card-label">Power Now</span>
+          <span class="card-label">Current Meter Reading</span>
           <span class="pill pill-teal status-badge">
             <span class="status-dot pulse-led"></span>
             <span>Pulse LED Active</span>
@@ -144,13 +141,11 @@
         <div class="card-metric">
           <div class="metric-line">
             <span class="metric-value" id="powerNowValue">%POWER_NOW%</span>
-            <span class="metric-unit metric-unit-teal">kW</span>
-            <span class="metric-sub">/</span>
-            <span class="metric-sub mono" id="powerNowWatts">%POWER_NOW_WATTS%</span>
+            <span class="metric-unit metric-unit-teal">kWh</span>
           </div>
           <p class="metric-note">
             <span class="material-symbols-outlined">offline_bolt</span>
-            <span>Current Pulse: <strong id="pulseDisplay">%PULSE_RATE%</strong></span>
+            <span>Cummulated Pulses: <strong id="pulseDisplay">%PULSE_RATE%</strong></span>
           </p>
         </div>
         <div class="card-foot card-foot-split">
@@ -540,16 +535,16 @@
     <article>
       <header>
         <button aria-label="Close" class="close" id="onboardCloseX" type="button"></button>
-        <strong>Welcome to Wattrack</strong>
+        <strong>Welcome to Krestel</strong>
       </header>
-      <p>Wattrack counts the pulse signals from your non-invasive submeter and turns them into live kWh and cost
+      <p>Krestel counts the pulse signals from your non-invasive submeter and turns them into live kWh and cost
         estimates — all processed locally on the ESP32.</p>
       <ul class="onboard-list">
         <li>Live power, usage and month-end projections</li>
         <li>Pulse constant &amp; utility rate saved to ESP32 flash</li>
         <li>No cloud account — everything stays on your LAN</li>
       </ul>
-      <p class="onboard-question">Have you used Wattrack with this meter before?</p>
+      <p class="onboard-question">Have you used Krestel with this meter before?</p>
       <footer>
         <button id="onboardNewBtn" type="button">Set up a new meter</button>
         <button class="secondary" id="onboardExistingBtn" type="button">I already have data</button>
