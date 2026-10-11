@@ -10,10 +10,14 @@ constexpr float DEFAULT_RATE = 10.5; // default
 
 extern volatile unsigned long lastPulseTime;
 extern volatile unsigned long rawFires;
-extern volatile unsigned long totalPulses;
+extern volatile unsigned long currPulseCounted;
+
+extern unsigned long baselinePulses;
+extern double baselineKwh; 
 
 extern double safeKwhRead;
 extern double safeEstimateReading;
+extern unsigned long totalPulses;
 
 extern uint16_t pulseConstant;
 extern float utilityRate;

@@ -13,5 +13,5 @@ void loop() {
 
   updateSafeKwh();
   updateSafeRate();
-  savePulseCount(totalPulses);
+  savePulseCount(currPulseCounted);
 }

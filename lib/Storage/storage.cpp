@@ -10,12 +10,12 @@ void initStorage()
         return;
     }
 
-    totalPulses = readSavedPulseCount();
+    currPulseCounted = readSavedPulseCount();
     pulseConstant = readSavedPulseConstant();
     utilityRate = readSavedUtilityRate();
 
     Serial.print("Loaded pulses: ");
-    Serial.println(totalPulses);
+    Serial.println(currPulseCounted);
     Serial.print("Pulse Constant: ");
     Serial.println(pulseConstant);
     Serial.print("Utility Rate: ");
