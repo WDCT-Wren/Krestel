@@ -506,16 +506,11 @@ async function updateMetrics() {
     const metrics = await response.json();
 
     const kwhElement = document.getElementById('powerNowValue');
-    const wattElement = document.getElementById('powerNowWatts');
 
     const pulseElement = document.getElementById('pulseDisplay');
 
     if (kwhElement) {
       kwhElement.textContent = Number(metrics.kwh).toFixed(2);
-    }
-
-    if (wattElement) {
-      wattElement.textContent = Number(metrics.kwh * 1000);
     }
 
     if (pulseElement) {
@@ -534,23 +529,35 @@ async function pollMetrics() {
 pollMetrics();
 
 // ==========================================
-// 11. fetch IP address of esp32 
+// 11. fetch the device configurations
 // ==========================================
 
-function updateIPAddress() {
-  fetch('/api/ip_address')
-    .then(response => {
-      if (!response.ok) {
-        throw new Error(`failed to fetch /api/ip_address`);
-      }
-      return response.text();
-    })
-    .then(data =>{
-      document.getElementById("ip_address").textContent = data;
-    })
-    .catch(error => {
-      console.error(error);
-      document.getElementById("ip_address").textContent = 'Error';
-    });
+async function fetchConfig() {
+  try {
+    const response = await fetch('/api/config');
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch ${response.status}`);
+    }
+
+    const config = await response.json();
+
+    const pulseConstant = document.getElementById('pulseConstantInput');
+    const utilityRate = document.getElementById('rateInput');
+    const ipAddress = document.getElementById('ip_address');
+
+    if (pulseConstant) {
+      pulseConstant.value = Number(config.constant);
+      pulseConstant.dispatchEvent(new Event('input'));
+    }
+    if (utilityRate) {
+      utilityRate.value = Number(config.rate).toFixed(2);
+      utilityRate.dispatchEvent(new Event('input'));
+    }
+    if (ipAddress) ipAddress.textContent = config.ip_address;
+
+  } catch (error) {
+    console.error(error);
+  }
 };
-updateIPAddress();
+fetchConfig();
