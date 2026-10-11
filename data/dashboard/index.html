@@ -163,16 +163,16 @@
         </div>
         <div class="card-metric">
           <div class="metric-line">
-            <span class="metric-value" id="usedValue">285</span>
+            <span class="metric-value" id="usedValue">--</span>
             <span class="metric-unit metric-unit-blue">kWh</span>
           </div>
           <p class="metric-note" id="usedSub">
-            Day 18 of 30 in lease billing cycle
+            -- 
           </p>
         </div>
         <div class="card-foot card-foot-split">
           <span>Daily average</span>
-          <strong id="dailyAvg">15.8 kWh / day</strong>
+          <strong id="dailyAvg">--</strong>
         </div>
       </div>
       <!-- Column 3: Estimated Month-End Spend / Projection -->
@@ -183,7 +183,7 @@
         </div>
         <div class="card-metric">
           <div class="metric-line">
-            <span class="metric-value" id="projValue">$68.20</span>
+            <span class="metric-value" id="projValue">--</span>
             <span class="card-label">EST</span>
           </div>
           <!-- Progress towards personal tenant limit -->
@@ -194,9 +194,9 @@
         <div class="card-foot card-foot-split">
           <span class="note-teal">
             <span class="material-symbols-outlined">savings</span>
-            <span>$6.80 under $75 cap</span>
+            <span>--</span>
           </span>
-          <span>Prev: $73.10</span>
+          <span>Prev: --</span>
         </div>
       </div>
     </section>
@@ -205,15 +205,14 @@
       <div class="chart-toolbar">
         <div>
           <h2 class="chart-title"><span id="chartMainTitle">Daily Energy Usage &amp; Heatmap Spend Profile</span><span
-              class="pill pill-teal" id="chartBadge">October 2024</span></h2>
-          <p class="chart-help muted" id="chartHelpText">Daily spend intensity bars layered with continuous pulse
-            telemetry transitioning into month-end forecast.</p>
+              class="pill pill-teal" id="chartBadge">--</span></h2>
+          <p class="chart-help muted" id="chartHelpText">--</p>
         </div>
         <!-- Chart Legend -->
         <ul class="legend">
           <li><span class="swatch swatch-teal"></span>Recorded Usage</li>
-          <li><span class="swatch swatch-lime"></span>Peak Spend Day</li>
-          <li><span class="swatch swatch-dashed"></span>Projected (Oct 25–31)</li>
+          <li><span class="swatch swatch-lime"></span>--</li>
+          <li><span class="swatch swatch-dashed"></span>--</li>
         </ul>
       </div>
       <!-- Responsive SVG Chart with Background Heatmap Columns & Smooth Curves -->
@@ -363,16 +362,16 @@
           <!-- Dynamic Floating Tooltip -->
           <div class="chart-tooltip" id="chartTooltip" hidden>
             <div class="tooltip-top">
-              <span id="tooltipDate">Oct 20</span>
-              <span class="tooltip-badge" id="tooltipBadge">PEAK</span>
+              <span id="tooltipDate">--</span>
+              <span class="tooltip-badge" id="tooltipBadge">--</span>
             </div>
             <div class="tooltip-main">
-              <span id="tooltipKwhValue">22.4 kWh</span>
-              <span class="tooltip-cost" id="tooltipCost">$3.35</span>
+              <span id="tooltipKwhValue">--</span>
+              <span class="tooltip-cost" id="tooltipCost">--</span>
             </div>
             <div class="tooltip-sub">
               <span>Submeter impulse count</span>
-              <span class="mono" id="tooltipImpulses">22,400 imp</span>
+              <span class="mono" id="tooltipImpulses">--</span>
             </div>
           </div>
         </div>
@@ -409,7 +408,7 @@
               <button id="decPulseBtn" type="button">
                 −
               </button>
-              <input id="pulseConstantInput" max="10000" min="100" step="100" type="number" value="1000" />
+              <input id="pulseConstantInput" max="10000" min="100" step="100" type="number" placeholder="--" />
               <button id="incPulseBtn" type="button">
                 +
               </button>
@@ -441,7 +440,7 @@
           <div class="kv-panel mono">
             <div class="kv">
               <span>Energy per pulse:</span>
-              <strong class="teal" id="pulseWhSummary">1.000 Wh</strong>
+              <strong class="teal" id="pulseWhSummary">--</strong>
             </div>
             <div class="kv">
               <span>Sensor pin:</span>
@@ -483,7 +482,7 @@
               <button id="decRateBtn" type="button">
                 −
               </button>
-              <input id="rateInput" max="25.00" min="1" step="1.0" type="number" value="12.5" />
+              <input id="rateInput" max="25.00" min="1" step="1.0" type="number" placeholder="--" />
               <button id="incRateBtn" type="button">
                 +
               </button>
@@ -509,21 +508,21 @@
             <span>How Cost Is Calculated</span>
           </p>
           <p class="explanation-body" id="rateExplanation">
-            At <strong id="rateDisplay">$0.12/kWh</strong>, each impulse costs <strong
-              id="costPerPulse">$0.00012</strong> based on your pulse constant.
+            At <strong id="rateDisplay">--</strong>, each impulse costs <strong
+              id="costPerPulse">--</strong>.
           </p>
           <div class="kv-panel mono">
             <div class="kv">
               <span>Cost per impulse:</span>
-              <strong class="amber" id="costPerImpulse">$0.00012</strong>
+              <strong class="amber" id="costPerImpulse">--</strong>
             </div>
             <div class="kv">
               <span>Cost per hour (1.4 kW):</span>
-              <strong class="amber" id="costPerHour">$0.168</strong>
+              <strong class="amber" id="costPerHour">--</strong>
             </div>
             <div class="kv">
               <span>Projected month-end:</span>
-              <strong class="amber" id="projectedCost">$68.20</strong>
+              <strong class="amber" id="projectedCost">--</strong>
             </div>
           </div>
         </div>
