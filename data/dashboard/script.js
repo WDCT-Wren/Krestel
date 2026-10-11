@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
 
       // Persist locally as an offline-safe fallback
-      try { localStorage.setItem('wattrack-reading', JSON.stringify(payload)); } catch (err) { }
+      try { localStorage.setItem('Krestel-reading', JSON.stringify(payload)); } catch (err) { }
 
       // POST to the ESP32 so it can store the baseline in flash/EEPROM.
       // The firmware currently returns 404 for unknown routes — a future
