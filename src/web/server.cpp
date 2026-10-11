@@ -26,7 +26,7 @@ static void connectWiFi() {
 
     Serial.println("\n[WiFi] Connection failed. Starting AP mode...");
     WiFiClass::mode(WIFI_AP);
-    WiFi.softAP("Wattrack-Setup", "wattrack123");
+    WiFi.softAP("Krestel-Setup", "Krestel123");
     Serial.printf("[WiFi] AP Mode — IP: %s\n", WiFi.softAPIP().toString().c_str());
   }
 }
@@ -55,13 +55,6 @@ static void handleMetrics(AsyncWebServerRequest *request) {
   json += "}";
 
   request->send(200, "application/json", json);
-}
-
-/**
- * Sends the esp32's local IP address for the dashboard
- */ 
-static void handleIPAdress(AsyncWebServerRequest * request) {
-  request->send(200, "text/plain", WiFi.localIP().toString().c_str());
 }
 
 /**
@@ -118,6 +111,22 @@ static void handleUtilityRateConfig(AsyncWebServerRequest * request) {
   request->send(200, "text/plain", "OK");
 }
 
+/**
+ * Sends the API current configuration of the imp to the dashboard such as:
+ *  - Pulse constant (i.e. 1000imp)
+ *  - Utility rate (i.e. 12.5)
+ *  - Server IP Address (i.e. 255.255.255.255)
+ */
+static void handleConfig(AsyncWebServerRequest * request) {  
+  String configJson = "{";
+  configJson += "\"constant\":" + String(pulseConstant) + ",";
+  configJson += "\"rate\":" + String(utilityRate) + ",";
+  configJson += "\"ip_address\":\"" + WiFi.localIP().toString() + "\"";
+  configJson += "}";
+
+  request->send(200, "application/json", configJson);
+}
+
 // Server setup
 
 void initWebServer() {
@@ -130,13 +139,6 @@ void initWebServer() {
   }
   Serial.println("[LittleFS] Mounted successfully");
 
-  // List files in LittleFS for debugging
-  File root = LittleFS.open("/");
-  File file = root.openNextFile();
-  while (file) {
-    Serial.printf("[LittleFS] %s (%d bytes)\n", file.name(), file.size());
-    file = root.openNextFile();
-  }
 
   // Static file serving from LittleFS
   // Serves /dashboard/index.html at GET /
@@ -144,7 +146,8 @@ void initWebServer() {
 
   // API endpoints
   server.on("/api/metrics", HTTP_GET, handleMetrics);
-  server.on("/api/ip_address", HTTP_GET, handleIPAdress);
+  server.on("/api/config", HTTP_GET, handleConfig);
+
   server.on("/api/pulse-config", HTTP_POST, handlePulseConfig);
   server.on("/api/rate-config", HTTP_POST, handleUtilityRateConfig);
 
