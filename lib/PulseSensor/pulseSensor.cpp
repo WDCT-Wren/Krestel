@@ -8,6 +8,9 @@ volatile unsigned long currPulseCounted = 0;
 double safeKwhRead = 0;
 double safeEstimateReading = 0;
 
+extern unsigned long baselinePulses = 0;
+extern double baselineKwh = 0; 
+
 uint16_t pulseConstant = DEFAULT_PULSE_CONSTANT; //default
 float utilityRate = DEFAULT_RATE;
 
