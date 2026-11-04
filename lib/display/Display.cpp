@@ -13,7 +13,7 @@ void initDisplay() {
 void displayData() {
     lcd.setCursor(0, 0);
     lcd.print("Pulses: ");
-    lcd.print(currPulseCounted);
+    lcd.print(totalPulses);
 
     lcd.setCursor(0, 1);
     lcd.print("kwh: ");
