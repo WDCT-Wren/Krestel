@@ -3,7 +3,7 @@
 
 volatile unsigned long lastPulseTime = 0;
 volatile unsigned long rawFires = 0;
-volatile unsigned long currPulseCounted = 0;
+volatile unsigned long totalPulses = 0;
 
 double safeKwhRead = 0;
 double safeEstimateReading = 0;
@@ -29,7 +29,7 @@ void initSensor() {
 
 void updateSafeKwh() {
   noInterrupts();
-  safeKwhRead = static_cast<double>(currPulseCounted) / pulseConstant;
+  safeKwhRead = static_cast<double>(totalPulses) / pulseConstant;
   interrupts();
 }
 
@@ -51,5 +51,5 @@ void IRAM_ATTR readPulse() {
 
   lastPulseTime = now; 
 
-  currPulseCounted++;
+  totalPulses++;
 }
