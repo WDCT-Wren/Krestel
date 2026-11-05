@@ -1,4 +1,5 @@
 #include "header.h"
+#include "web/server.h"
 
 void setup() {
   Serial.begin(115200);

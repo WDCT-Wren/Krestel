@@ -8,4 +8,3 @@
 #include "pulseSensor.h"
 #include "pulseLEDSim.h"
 #include "storage.h"
-#include "web/server.h"
