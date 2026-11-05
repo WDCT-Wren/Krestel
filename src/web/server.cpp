@@ -31,106 +31,6 @@ static void connectWiFi() {
   }
 }
 
-// Helper function to give data from server to web dashbaord
-
-/**
- * JSON helper for capturing sensor data such as:
- *  - pulse count
- *  - Kwh consumed
- *  - server uptime
- */
-static void handleMetrics(AsyncWebServerRequest *request) {
-  unsigned long pulses;
-  double currentKwh;
-
-  noInterrupts();
-  pulses = currPulseCounted;
-  currentKwh = safeKwhRead;
-  interrupts();
-
-  String json = "{";
-  json += "\"pulses\":" + String(pulses) + ",";
-  json += "\"kwh\":" + String(currentKwh, 2) + ",";
-  json += "\"uptime\":" + String(millis() / 1000);
-  json += "}";
-
-  request->send(200, "application/json", json);
-}
-
-/**
- * Sends the API current configuration of the imp to the dashboard such as:
- *  - Pulse constant (i.e. 1000imp)
- *  - Utility rate (i.e. 12.5)
- *  - Server IP Address (i.e. 255.255.255.255)
- */
-static void handleConfig(AsyncWebServerRequest * request) {  
-  String configJson = "{";
-  configJson += "\"constant\":" + String(pulseConstant) + ",";
-  configJson += "\"rate\":" + String(utilityRate) + ",";
-  configJson += "\"ip_address\":\"" + WiFi.localIP().toString() + "\"";
-  configJson += "}";
-
-  request->send(200, "application/json", configJson);
-}
-
-/**
- * Recieves pulse config data for configurable pulse constant 
- */
-static void handlePulseConfig(AsyncWebServerRequest * request) {
-  const AsyncWebParameter *param = request->getParam("pulse-config", true);
-
-  // Never dereference it without checking, or the ESP32 panics.
-  if (param == nullptr) {
-    request->send(400, "text/plain", "Missing 'pulse-config' parameter");
-    return;
-  }
-
-  uint16_t newPulseConfig = (uint16_t)param->value().toInt();
-
-  if (newPulseConfig == 0) {
-    request->send(400, "text/plain", "Invalid 'pulse-config' value");
-    return;
-  }
-
-  pulseConstant = newPulseConfig;
-  savePulseConstant(newPulseConfig);
-
-  Serial.printf("[Web] New pulse config: %u\n", newPulseConfig);
-
-  request->send(200, "text/plain", "OK");
-}
-
-/**
- * Recieves utility rate from configurable utility rate
- */
-static void handleUtilityRateConfig(AsyncWebServerRequest * request) {
-  const AsyncWebParameter *param = request->getParam("rate-config", true);
-
-  // Never dereference it without checking, or the ESP32 panics.
-  if (param == nullptr) {
-    request->send(400, "text/plain", "Missing 'rate-config' parameter");
-    return;
-  }
-
-  float newUtilityRate = param->value().toFloat();
-
-  if (newUtilityRate == 0) {
-    request->send(400, "text/plain", "Invalid 'rate-config' value");
-    return;
-  }
-
-  utilityRate = newUtilityRate;
-  saveUtilityRate(newUtilityRate);
-
-  Serial.printf("[Web] New Utility Rate: %.2f\n", newUtilityRate);
-
-  request->send(200, "text/plain", "OK");
-}
-
-static void handleBaseline(AsyncWebServerRequest * request) {
-
-}
-
 // Server setup
 
 void initWebServer() {
@@ -139,7 +39,7 @@ void initWebServer() {
   if (!LittleFS.begin(true)) {
     Serial.println("[LittleFS] Mount failed — formatting...");
     LittleFS.format();
-    LittleFS.begin(true);
+    LittleFS.begin(true); 
   }
   Serial.println("[LittleFS] Mounted successfully");
 
@@ -149,11 +49,11 @@ void initWebServer() {
   server.serveStatic("/", LittleFS, "/dashboard/").setDefaultFile("index.html");
 
   // API endpoints
-  server.on("/api/metrics", HTTP_GET, handleMetrics);
-  server.on("/api/config", HTTP_GET, handleConfig);
+  server.on("/api/metrics", HTTP_GET, sendMetrics);
+  server.on("/api/config", HTTP_GET, sendConfig);
 
-  server.on("/api/pulse-config", HTTP_POST, handlePulseConfig);
-  server.on("/api/rate-config", HTTP_POST, handleUtilityRateConfig);
+  server.on("/api/pulse-config", HTTP_POST, receivePulseConfig);
+  server.on("/api/rate-config", HTTP_POST, receiveUtilityRateConfig);
 
   // Daily usage chart
   // TODO: implement daily usage chart response

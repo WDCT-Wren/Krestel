@@ -2,6 +2,7 @@
 
 #include "header.h"
 #include <LittleFS.h>
+#include "handlers.h"
 
 // Real credentials live in credentials.h (gitignored)
 // Copy credentials.h.example to credentials.h and fill in your WiFi details
