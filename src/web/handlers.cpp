@@ -18,9 +18,6 @@ void sendMetrics(AsyncWebServerRequest *request) {
   noInterrupts();
   pulses = totalPulses;
   currentKwh = safeKwhRead;
-  sinceBaselineKwh = safeSinceBaselineKwh;
-  meterKwh = safeMeterKwhRead;
-  hasBaseline = baselineValid;
   interrupts();
 
   // 'kwh' stays device-relative (totalPulses / pulseConstant); 'meter_kwh' is
@@ -47,7 +44,6 @@ void sendConfig(AsyncWebServerRequest * request) {
   String configJson = "{";
   configJson += "\"constant\":" + String(pulseConstant) + ",";
   configJson += "\"rate\":" + String(utilityRate) + ",";
-  configJson += "\"has_baseline\":" + String(baselineValid ? "true" : "false") + ",";
   configJson += "\"baseline_kwh\":" + String(baselineKwh, 2) + ",";
   configJson += "\"baseline_pulses\":" + String(baselinePulses) + ",";
   configJson += "\"ip_address\":\"" + WiFi.localIP().toString() + "\"";
