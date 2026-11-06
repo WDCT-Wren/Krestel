@@ -16,3 +16,6 @@ void receivePulseConfig(AsyncWebServerRequest *request);
 
 // POST /api/rate-config  — update the configurable utility rate
 void receiveUtilityRateConfig(AsyncWebServerRequest *request);
+
+// POST /api/baseline  — update the baseline meter values
+void receiveBaseline(AsyncWebServerRequest *request);

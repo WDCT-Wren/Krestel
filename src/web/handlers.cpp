@@ -1,5 +1,4 @@
 #include "handlers.h"
-
 #include "header.h"
 
 /**
@@ -106,4 +105,22 @@ void receiveUtilityRateConfig(AsyncWebServerRequest * request) {
   request->send(200, "text/plain", "OK");
 }
 
+void receiveBaseline(AsyncWebServerRequest * request) {
+  const AsyncWebParameter *param = request->getParam("baseline-kwh", true);
 
+  // Null checker
+  if (param == nullptr) {
+    request->send(400, "text/plain", "Missing 'rate-config' parameter");
+    return;
+  }
+
+  float newBaseline = param->value().toFloat();
+
+  //TODO: write failure checkers
+  //TODO: assing new baseline value to external baseline var
+  //TODO: save in preferences
+
+  Serial.printf("[Web] New Baseline: %.2f\n", newBaseline);
+
+  request->send(200, "text/plain", "OK");
+}
