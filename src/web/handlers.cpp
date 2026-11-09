@@ -116,11 +116,34 @@ void receiveBaseline(AsyncWebServerRequest * request) {
 
   float newBaseline = param->value().toFloat();
 
-  //TODO: write failure checkers
-  //TODO: assing new baseline value to external baseline var
-  //TODO: save in preferences
+  //failure checkers
+  if (newBaseline > 99999.9) {
+    request->send(400, "text/plain", "invalid 'baseline' value - maximum meter value is 99,999.9");
+    return;
+  }
+  if (isDecimal(param->value())) {
+    request->send(400, "text/plain", "invalid 'baseline' value - must be a number not a string!");
+    return;
+  }
 
-  Serial.printf("[Web] New Baseline: %.2f\n", newBaseline);
+  baselineKwh = newBaseline;
+
+  //TODO: add a currentKwh value 
+  //TODO: add a new class called METER to store the values of a meter rather than stuffing all of it in the pulseSensor Class
+  currentKwh = baselineKwh + totalPulses / pulseConstant;
+
+  saveBaseline(newBaseline);
+
+  Serial.printf("[Web] New Baseline kwh value: %.2f\n", newBaseline);
 
   request->send(200, "text/plain", "OK");
+}
+
+/**
+ * Helper function for receiveBaseline() by checking if the entered string towards the textfield of the baseline is a float to prevent the ff. cases:
+ *  - The user enters "banana" resulting in "0.0" in the toFloat(), same as of a real "0.0" input. 
+ *  - Unlike receiveConfig() and receiveUtilityRateConfig(), receiveBaseline can accept "0.0" as an input.
+ */
+static boolean isDecimal() {
+  //TODO: implement the decimal checker
 }
