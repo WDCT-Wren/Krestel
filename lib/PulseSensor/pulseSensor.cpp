@@ -8,9 +8,6 @@ volatile unsigned long totalPulses = 0;
 double safeKwhRead = 0;
 double safeEstimateReading = 0;
 
-extern unsigned long baselinePulses = 0;
-extern double baselineKwh = 0; 
-
 uint16_t pulseConstant = DEFAULT_PULSE_CONSTANT; //default
 float utilityRate = DEFAULT_RATE;
 
@@ -25,18 +22,6 @@ void initSensor() {
     readPulse,
     FALLING
   );
-}
-
-void updateSafeKwh() {
-  noInterrupts();
-  safeKwhRead = static_cast<double>(totalPulses) / pulseConstant;
-  interrupts();
-}
-
-void updateSafeRate() {
-  noInterrupts();
-  safeEstimateReading = static_cast<double>(utilityRate) * safeKwhRead;
-  interrupts();
 }
 
 /*

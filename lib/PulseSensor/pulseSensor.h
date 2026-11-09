@@ -12,14 +12,6 @@ extern volatile unsigned long lastPulseTime;
 extern volatile unsigned long rawFires;
 extern volatile unsigned long totalPulses;
 
-extern unsigned long baselinePulses;
-extern double baselineKwh; 
-
-extern double safeKwhRead;
-extern double safeEstimateReading;
-extern uint16_t pulseConstant;
-extern float utilityRate;
-
 void readPulse();
 void initSensor();
 void updateSafeKwh();

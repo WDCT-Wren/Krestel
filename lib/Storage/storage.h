@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Preferences.h>
+#include "meter.h"
 #include "pulseSensor.h"
 
 void initStorage();
