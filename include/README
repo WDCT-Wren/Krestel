@@ -1,37 +1,37 @@
+# include/
 
-This directory is intended for project header files.
+Shared project headers. PlatformIO puts this directory on the include path, so
+any source file can write `#include "header.h"` regardless of its own location.
 
-A header file is a file containing C declarations and macro definitions
-to be shared between several project source files. You request the use of a
-header file in your project source file (C, C++, etc) located in `src` folder
-by including it, with the C preprocessing directive `#include'.
+## Files
 
-```src/main.c
+### `header.h`
 
-#include "header.h"
+The umbrella header for the ESP32 firmware. It is included by `src/main.cpp`
+and by every file under `src/web/`, and it pulls in:
 
-int main (void)
-{
- ...
-}
-```
+| Group | Headers |
+|---|---|
+| Framework | `<Arduino.h>`, `<Wire.h>`, `<WiFi.h>`, `<ESPAsyncWebServer.h>` |
+| Project libraries | `pulseSensor.h`, `pulseLEDSim.h`, `storage.h` |
 
-Including a header file produces the same results as copying the header file
-into each source file that needs it. Such copying would be time-consuming
-and error-prone. With a header file, the related declarations appear
-in only one place. If they need to be changed, they can be changed in one
-place, and programs that include the header file will automatically use the
-new version when next recompiled. The header file eliminates the labor of
-finding and changing all the copies as well as the risk that a failure to
-find one copy will result in inconsistencies within a program.
+Consequences worth knowing:
 
-In C, the convention is to give header files names that end with `.h'.
+- Because it includes `WiFi.h` and `ESPAsyncWebServer.h`, anything that includes
+  `header.h` only compiles for the `esp32` environment. The `uno` environment in
+  `platformio.ini` cannot use it as-is.
+- `lib/Display/display.h` is **not** included here. The I2C LCD code is dormant,
+  so the LiquidCrystal_I2C dependency never enters the ESP32 build.
+- `lib/Meter/` has no header yet — it is an empty placeholder, so there is
+  nothing to add to `header.h`.
 
-Read more about using header files in official GCC documentation:
+## Conventions
 
-* Include Syntax
-* Include Operation
-* Once-Only Headers
-* Computed Includes
-
-https://gcc.gnu.org/onlinedocs/cpp/Header-Files.html
+- Every header in this project uses `#pragma once` and contains declarations
+  only. Definitions live in the matching `.cpp` in `lib/<Library>/` or
+  `src/web/`.
+- Library headers are included by bare filename (`#include "storage.h"`);
+  PlatformIO's Library Dependency Finder resolves them from `lib/`.
+- Headers local to one source folder (`src/web/server.h`, `src/web/handlers.h`)
+  live beside their `.cpp` and are included with a relative name, not from
+  here.

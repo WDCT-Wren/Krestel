@@ -1,46 +1,76 @@
+# lib/
 
-This directory is intended for project specific (private) libraries.
-PlatformIO will compile them to static libraries and link into the executable file.
+Project-private libraries. PlatformIO compiles each subdirectory here into a
+static library and links it into the firmware; nothing needs to be listed in
+`lib_deps`. Dependencies between them are resolved automatically, because each
+library includes its neighbours by bare filename (e.g. `#include "storage.h"`).
 
-The source code of each library should be placed in a separate directory
-("lib/your_library_name/[Code]").
+## Libraries
 
-For example, see the structure of the following example libraries `Foo` and `Bar`:
+| Directory | Status | Responsibility |
+|---|---|---|
+| `PulseSensor/` | Active, core | Pulse interrupts, debounce, kWh/rate derivation, runtime config globals |
+| `Storage/` | Active | Persistence of pulses, config, and baseline in NVS via `Preferences` |
+| `PulseLEDSim/` | Active (debug) | Drives a status LED on `LED_PIN` as a visual pulse indicator |
+| `Display/` | Dormant | I2C character LCD output; not referenced by `src/main.cpp` |
+| `Meter/` | **Empty placeholder** | Reserved for the planned refactor that moves meter state out of `PulseSensor` |
 
-|--lib
-|  |
-|  |--Bar
-|  |  |--docs
-|  |  |--examples
-|  |  |--src
-|  |     |- Bar.c
-|  |     |- Bar.h
-|  |  |- library.json (optional. for custom build options, etc) https://docs.platformio.org/page/librarymanager/config.html
-|  |
-|  |--Foo
-|  |  |- Foo.c
-|  |  |- Foo.h
-|  |
-|  |- README --> THIS FILE
-|
-|- platformio.ini
-|--src
-   |- main.c
+## `PulseSensor/`
 
-Example contents of `src/main.c` using Foo and Bar:
-```
-#include <Foo.h>
-#include <Bar.h>
+The heart of the firmware, and currently the owner of all meter state.
 
-int main (void)
-{
-  ...
-}
+- `pulseSensor.h` defines `SENSOR_PIN` (4), `DEBOUNCE_MILLIS` (50),
+  `DEFAULT_PULSE_CONSTANT` (1600), `DEFAULT_RATE` (10.5).
+- `pulseSensor.cpp` owns the storage for `volatile totalPulses`,
+  `lastPulseTime`, and `rawFires`, plus `baselinePulses`, `baselineKwh`,
+  `pulseConstant`, `utilityRate`, `safeKwhRead`, and `safeEstimateReading`.
+- `readPulse()` is an `IRAM_ATTR` falling-edge ISR: it increments `rawFires`,
+  drops edges inside the 50 ms debounce window, then increments `totalPulses`.
+- `updateSafeKwh()` snapshots `totalPulses` with interrupts disabled and derives
+  `safeKwhRead = totalPulses / pulseConstant` as a `double`.
+- `updateSafeRate()` derives `safeEstimateReading = utilityRate * safeKwhRead`.
 
-```
+Note: `pulseSensor.cpp` defines `baselinePulses` and `baselineKwh` with the
+`extern` keyword plus an initializer. It links today, but the cleaner form is a
+plain definition in the `.cpp` and a bare `extern` declaration in the header —
+expected to be cleaned up as part of the `Meter/` split.
 
-The PlatformIO Library Dependency Finder will find automatically dependent
-libraries by scanning project source files.
+## `Storage/`
 
-More information about PlatformIO Library Dependency Finder
-- https://docs.platformio.org/page/librarymanager/ldf.html
+All persistence goes through one `Preferences` namespace, `"sensorData"`.
+`initStorage()` reads every value back into the globals in `PulseSensor/` at
+boot and prints them to Serial.
+
+| Key | Type | Written by |
+|---|---|---|
+| `totalPulses` | `ULong` | `savePulseCount()` |
+| `pulseConstant` | `UShort` | `savePulseConstant()` |
+| `utilityRate` | `Float` | `saveUtilityRate()` |
+| `baselineKwh` | `Double` | `saveBaseline(kwh, pulses)` |
+| `baselinePulses` | `ULong` | `saveBaseline(kwh, pulses)` |
+
+Fallbacks used when a key is absent: `totalPulses` 0, `baselineKwh` 0.0,
+`baselinePulses` 0, `pulseConstant` 1000, `utilityRate` 10.0 — note that the
+last two differ from `DEFAULT_PULSE_CONSTANT` and `DEFAULT_RATE`.
+
+## `PulseLEDSim/`
+
+Implements `initLED()`/`pulseLED()`: two 5 ms HIGH/LOW blinks followed by a
+200 ms pause on `LED_PIN` (18). It is a fixed pattern driven from `loop()`, not
+a mirror of real sensor pulses, and it adds ~220 ms to every loop iteration.
+
+## `Display/`
+
+An I2C LCD driver (address `0x27`, geometry 24x4) that prints pulses, kWh, and
+the pulse constant. It is not called from `src/main.cpp` and is effectively
+parked. If it is ever re-enabled it needs fixing first: it includes
+`"PulseSensor.h"` (wrong case — the file on disk is `pulseSensor.h`) and prints
+`PULSE_CONSTANT`, a name that no longer exists in `pulseSensor.h`. Its
+`LiquidCrystal_I2C` dependency is only declared in the `[env:uno]` block.
+
+## `Meter/`
+
+`meter.h` and `meter.cpp` exist but are empty (0 bytes). They are the start of
+the refactor described in `PLAN.md`: give the meter its own type so baseline,
+pulse constant, and kWh derivation stop living inside `PulseSensor`. Nothing
+includes these files yet.

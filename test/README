@@ -1,11 +1,50 @@
+# test/
 
-This directory is intended for PlatformIO Test Runner and project tests.
+PlatformIO's unit-test directory. It is **currently empty**: there are no test
+files here, and `platformio.ini` has no `native` environment, no `test_filter`,
+and no `test_ignore`.
 
-Unit Testing is a software testing method by which individual units of
-source code, sets of one or more MCU program modules together with associated
-control data, usage procedures, and operating procedures, are tested to
-determine whether they are fit for use. Unit testing finds problems early
-in the development cycle.
+With no `native` env configured, `pio test` can only target the board:
 
-More information about PlatformIO Unit Testing:
-- https://docs.platformio.org/en/latest/advanced/unit-testing/index.html
+```bash
+pio test -e esp32
+```
+
+## Adding a test
+
+PlatformIO's test runner picks up `test/test_<name>.cpp` automatically and
+supplies the Unity framework (plus the Arduino framework, since the env is
+`esp32`). The conventional shape:
+
+```cpp
+#include <unity.h>
+#include "pulseSensor.h"
+
+void setUp(void) {}
+void tearDown(void) {}
+
+void test_debounce_window_rejects_second_edge(void) {
+  // exercise readPulse()-adjacent logic here
+  TEST_ASSERT_TRUE(DEBOUNCE_MILLIS == 50);
+}
+
+int main(int, char **) {
+  UNITY_BEGIN();
+  RUN_TEST(test_debounce_window_rejects_second_edge);
+  return UNITY_END();
+}
+```
+
+Note that most current firmware logic is not testable in isolation: the pulse
+counter is ISR-global state, and `Storage/` needs a live `Preferences`
+partition. The intended order of work (see `lib/README`, `PLAN.md`) is to move
+that logic behind the `Meter` type first, so debounce-window filtering and
+baseline delta math can be tested without hardware.
+
+Not yet covered by any test:
+
+- debounce window / `rawFires` versus `totalPulses` relationship
+- `totalPulses / pulseConstant` kWh derivation and its truncation behaviour
+- baseline delta math (`totalPulses - baselinePulses`, underflow guard)
+- request validation in `src/web/handlers.cpp` (missing param, zero value,
+  non-numeric input)

@@ -1,280 +1,337 @@
-# Krestel — Non-Invasive Energy Submeter
+# Krestel — ESP32 Non-Invasive Energy Submeter
 
-**Krestel** is an Arduino/ESP32-based energy monitoring system that tracks electrical consumption through a non-invasive pulse sensor, computes kilowatt-hour totals from pulse counts, and exposes a live dashboard via a built-in web interface.
+**Krestel** is an ESP32-based energy monitor that optically reads the pulse LED
+of a household electricity meter, counts pulses, converts them to kWh, and
+serves a local web dashboard over WiFi.
 
----
-
-## Table of Contents
-
-- [Overview](#overview)
-- [Features](#features)
-- [Hardware Requirements](#hardware-requirements)
-- [Supported Boards](#supported-boards)
-- [Project Structure](#project-structure)
-- [How It Works](#how-it-works)
-- [Configuration](#configuration)
-- [Building & Uploading](#building--uploading)
-- [Web Dashboard](#web-dashboard)
-- [Library Reference](#library-reference)
-- [Calibration](#calibration)
-- [Notes & Limitations](#notes--limitations)
+The target installation is a Dragonfly HGL-888 submeter (230–240 V, 10(60) A,
+1600 imp/kWh) in a rented unit. Pulses come from an LM393 phototransistor
+module taped over the meter's pulse LED, so nothing is wired into the mains.
 
 ---
 
-## Overview
+## Current position
 
-Krestel hooks into the pulse output of a utility-grade energy sensor (or a simulated pulse source during testing). Each pulse represents a fixed fraction of a kilowatt-hour (default: 1 pulse per 1/1600 kWh). The firmware:
+Krestel is a working bench prototype with a real dashboard and a partially
+finished baseline feature. The physical install has not happened yet.
 
-1. Counts pulses via a hardware interrupt.
-2. Debounces spurious edges.
-3. Persists the total pulse count across reboots using EEPROM.
-4. Blinks an LED as a visual pulse indicator.
-5. Serves a polished HTML dashboard via LittleFS and ESPAsyncWebServer for remote monitoring over WiFi.
+**Working**
 
-The end goal is a submeter that can estimate electricity bills from real consumption data without breaking the electrical circuit, accessible from any device on your network.
+- Falling-edge interrupt pulse counting on GPIO 4, with a 50 ms debounce and
+  `IRAM_ATTR` ISR. Bench-validated at 1:1 counting.
+- kWh derived from the pulse count (`totalPulses / pulseConstant`) and a cost
+  estimate from a configurable flat utility rate.
+- Persistence in ESP32 NVS (`Preferences`, namespace `sensorData`) for pulse
+  count, pulse constant, utility rate, and the two baseline values.
+- WiFi connection with a 20-second timeout, falling back to an access point
+  named `Krestel-Setup` (password `Krestel123`).
+- LittleFS + ESPAsyncWebServer: static dashboard from `/dashboard/`, plus
+  `GET /api/metrics`, `GET /api/config`, `POST /api/pulse-config`, and
+  `POST /api/rate-config`.
+- Dashboard UI: dark/light theme, timeframe switcher, SVG chart with tooltips,
+  pulse-constant and rate forms wired to the API, cumulative-pulse readout,
+  onboarding dialog, and a first-run baseline form.
+
+**In progress**
+
+- Baseline reading endpoint. `receiveBaseline()` exists in
+  `src/web/handlers.cpp`, `lib/Storage` already persists
+  `baselineKwh`/`baselinePulses`, but the handler is incomplete and does not
+  compile; no route is registered; the dashboard still posts JSON to
+  `/api/reading`, which currently 404s. See **Known gaps**.
+- `lib/Meter/` — empty placeholder for the refactor that will move meter state
+  and kWh derivation out of `PulseSensor`.
+
+**Not started**
+
+- Timeframe, daily-average, projection, and chart data. Those cards and the
+  chart render `--`; `dataByTimeframe` in `script.js` is placeholder-only.
+- Physical install: wire and crimping tool not yet bought, LM393 onboard
+  PWR/DO LEDs not yet disabled, optical baffle not fitted, housing is printed.
+- Soak test against the meter's own register.
 
 ---
 
-## Features
-
-- **Interrupt-driven pulse counting** — accurate, low-latency detection on the chosen sensor pin.
-- **Debouncing** — ignores edges within 50 ms of each other to avoid noise inflation.
-- **Safe read of volatile kWh data** — `updateSafeKwh()` snapshots the volatile counter under `noInterrupts()` so the web API can read a stable value.
-- **EEPROM persistence** — pulse count survives power cycles; first boot initializes EEPROM with a magic flag.
-- **Visual pulse LED** — GPIO 13 blinks to indicate pulse activity, useful for debugging.
-- **ESP32 web dashboard** — a full-featured single-page dashboard (Pico CSS + Material Symbols) served from LittleFS with JSON API endpoints for live consumption data.
-- **LittleFS file serving** — dashboard files (HTML, CSS, JS) are stored in flash and served by ESPAsyncWebServer, with separate JSON endpoints for metrics and chart data.
-
----
-
-## Hardware Requirements
+## Hardware
 
 | Component | Notes |
 |---|---|
-| **Microcontroller** | ESP32 dev board (WiFi + LittleFS required for dashboard) |
-| **Photodiode Sensor Module** | A sensor that detects a pulse output proportional to kWh (e.g., a photoresistor/photodiode reading an optical meter output, or a dedicated CT-based module with pulse out) |
-| **LED (optional)** | Connected to GPIO 13 (default), or whatever `LED_PIN` is set to |
-| **EEPROM** | Built-in on the microcontroller |
+| **ESP32 dev board** | `esp32dev`; WiFi and LittleFS are both required |
+| **LM393 phototransistor comparator module** | Optical read of the meter's pulse LED; digital `DO` output to the ESP32 |
+| **Dragonfly HGL-888 submeter** | 230–240 V, 10(60) A, 1600 imp/kWh; source of the pulses |
+| **Status LED (optional)** | GPIO 18; blinks as a visual activity indicator |
+| **3D-printed PETG housing** | Black; mounts the module over the meter's LED |
+
+## Wiring
+
+| Signal | ESP32 pin | Defined in |
+|---|---|---|
+| Sensor `DO` (pulse output) | GPIO 4 | `SENSOR_PIN`, `lib/PulseSensor/pulseSensor.h` |
+| Status LED | GPIO 18 | `LED_PIN`, `lib/PulseLEDSim/pulseLEDSim.h` |
+
+The interrupt is attached on `FALLING`; the pulse is active-low.
 
 ---
 
-## Supported Boards
-
-| Environment | Platform | Framework | Extra deps |
-|---|---|---|---|
-| `esp32` | ESP32 (esp32dev) | Arduino | `ESPAsyncWebServer` |
-
-Build and upload:
-
-```bash
-pio run -e esp32 -t upload
-```
-
-
-## Project Structure
+## Project structure
 
 ```
 .
 ├── include/
-│   └── header.h              # Shared includes and forward declarations
+│   ├── header.h              # Umbrella header: framework + project headers
+│   └── README                # What belongs in include/
 ├── lib/
-│   ├── PulseLEDSim/
-│   │   ├── pulseLEDSim.h
-│   │   └── pulseLEDSim.cpp   # LED pulse simulation (debug aid)
-│   ├── PulseSensor/
-│   │   ├── pulseSensor.h
-│   │   └── pulseSensor.cpp   # Interrupt-based pulse counting + debounce
-│   ├── Storage/
-│   │   ├── storage.h
-│   │   └── storage.cpp       # EEPROM init/save/restore of pulse count
-│   └── README
+│   ├── Display/              # I2C LCD driver — dormant, not built by main.cpp
+│   ├── Meter/                # Empty placeholder for the meter refactor
+│   ├── PulseLEDSim/          # Status LED blink pattern
+│   ├── PulseSensor/          # Interrupt counting, kWh/rate derivation, globals
+│   ├── Storage/              # Preferences (NVS) persistence
+│   └── README                # Library index and per-library notes
 ├── src/
-│   ├── main.cpp              # setup()/loop() — ties all libraries together
-│   ├── config.h              # Pin definitions, constants
+│   ├── main.cpp              # setup()/loop()
 │   └── web/
-│       ├── server.h          # WiFi config, web server declarations
-│       ├── server.cpp        # ESPAsyncWebServer + LittleFS + JSON API
+│       ├── server.h          # WiFi + web server declarations
+│       ├── server.cpp        # WiFi/AP fallback, LittleFS mount, route table
+│       ├── handlers.h        # API handler declarations
+│       ├── handlers.cpp      # metrics/config/pulse-config/rate-config handlers
 │       ├── credentials.h     # WiFi credentials (gitignored)
-│       └── credentials.h.example  # Template for credentials.h
-├── data/
-│   └── dashboard/
-│       ├── index.html        # Dashboard markup (uploaded to LittleFS)
-│       ├── pico.min.css      # Pico CSS v2 (vendored framework)
-│       ├── styles.css        # Dashboard styles
-│       └── script.js         # Dashboard interactivity
+│       └── credentials.h.example
+├── data/dashboard/           # Uploaded to LittleFS, not compiled into firmware
+│   ├── index.html            # Single-page dashboard
+│   ├── styles.css            # Dashboard styles
+│   └── script.js             # Polling, forms, chart, theme, onboarding
+├── test/
+│   └── README                # Test runner dir — currently no tests
 ├── platformio.ini
-├── .gitignore
+├── PLAN.md                   # Design notes and work order (draft)
 ├── LICENSE
 └── README.md
 ```
 
 ---
 
-## How It Works
+## How it works
 
 ### Pulse counting
 
-The sensor is wired to `SENSOR_PIN` (default: GPIO 2). An interrupt fires on the **falling edge** of the signal, calling `readPulse()`. The handler:
+`initSensor()` configures `SENSOR_PIN` as an input and attaches `readPulse()` on
+the falling edge. The ISR:
 
-1. Records the current `millis()`.
-2. Increments `rawFires`.
-3. Rejects the pulse if fewer than `DEBOUNCE_MILLIS` (50 ms) have elapsed since the last valid pulse.
-4. On a valid pulse, increments `totalPulses` and recomputes `kwh = totalPulses / PULSE_CONSTANT`.
+1. Reads `millis()` and increments `rawFires` (every firing, debounced or not).
+2. Returns immediately if the edge arrived within `DEBOUNCE_MILLIS` (50 ms) of
+   the last accepted pulse.
+3. Otherwise records the time and increments `totalPulses`.
 
-### Safe read
+`totalPulses` is the only source of truth for energy; kWh is always derived,
+never persisted.
 
-Because `kwh` is `volatile` and updated in an ISR, the main loop never reads it directly. Instead:
+### Safe reads
 
-- `updateSafeKwh()` copies `kwh` into `safeKwhRead` with interrupts disabled.
-- The web API reads `safeKwhRead` to serve stable values to the dashboard.
+`loop()` calls `updateSafeKwh()` and `updateSafeRate()`, which snapshot the
+volatile counter with interrupts disabled and publish:
+
+```
+safeKwhRead         = totalPulses / pulseConstant
+safeEstimateReading = utilityRate * safeKwhRead
+```
+
+The web handlers read those snapshots rather than the ISR-written globals.
 
 ### Persistence
 
-On boot, `initStorage()` checks a magic byte at EEPROM address 0. If it doesn't match `EEPROM_INIT_MAGIC` (0xA5), the pulse count is reset to 0 and the magic is written. Otherwise the saved count at address 1 is loaded back into `totalPulses`.
+`initStorage()` opens `Preferences` namespace `sensorData` and restores the
+pulse count, pulse constant, utility rate, and baseline into the globals. Note
+the read fallbacks: `totalPulses` 0, `pulseConstant` **1000**, `utilityRate`
+**10.0**, `baselineKwh` 0.0, `baselinePulses` 0. On a fresh device the effective
+constant is therefore 1000, not `DEFAULT_PULSE_CONSTANT` (1600).
+
+`loop()` then calls `savePulseCount(totalPulses)` on every iteration, which is
+every ~220 ms because `pulseLED()` blocks for that long.
+
+### Serving
+
+`server.cpp` connects to WiFi (40 × 500 ms attempts). On failure it switches to
+AP mode and serves at `192.168.4.1`. LittleFS is mounted with format-on-fail, and
+`/` is served statically from `/dashboard/` with `index.html` as the default
+file. There is no template processor, so the `%IP_ADDRESS%` / `%POWER_NOW%`
+placeholders in `index.html` are replaced at runtime by `script.js` from the API
+responses.
 
 ---
 
 ## Configuration
 
-Key constants live in `lib/PulseSensor/pulseSensor.h`:
+Firmware constants:
 
-| Constant | Default | Meaning |
-|---|---|---|
-| `SENSOR_PIN` | 2 | GPIO connected to the sensor pulse output |
-| `PULSE_CONSTANT` | 1600 | Pulses per kWh (adjust to match your meter's `imp/kWh` rating) |
-| `DEBOUNCE_MILLIS` | 50 | Minimum ms between valid pulses |
+| Constant | Value | Where | Meaning |
+|---|---|---|---|
+| `SENSOR_PIN` | 4 | `lib/PulseSensor/pulseSensor.h` | Pulse input GPIO |
+| `DEBOUNCE_MILLIS` | 50 | `lib/PulseSensor/pulseSensor.h` | Minimum ms between accepted pulses |
+| `DEFAULT_PULSE_CONSTANT` | 1600 | `lib/PulseSensor/pulseSensor.h` | Fallback pulses per kWh (overridden on boot by the NVS read default of 1000) |
+| `DEFAULT_RATE` | 10.5 | `lib/PulseSensor/pulseSensor.h` | Fallback currency unit per kWh (overridden by the NVS default of 10.0) |
+| `LED_PIN` | 18 | `lib/PulseLEDSim/pulseLEDSim.h` | Status LED GPIO |
 
-LED pin is set in `lib/PulseLEDSim/pulseLEDSim.h`:
+Runtime-configurable values (persisted under `sensorData`):
 
-| Constant | Default | Meaning |
-|---|---|---|
-| `LED_PIN` | 13 | GPIO driving the debug/status LED |
+| Key | Type | Default on first boot | Set by |
+|---|---|---|---|
+| `totalPulses` | `ULong` | 0 | `loop()` |
+| `pulseConstant` | `UShort` | 1000 | `POST /api/pulse-config` |
+| `utilityRate` | `Float` | 10.0 | `POST /api/rate-config` |
+| `baselineKwh` | `Double` | 0.0 | `POST /api/baseline` (not routed yet) |
+| `baselinePulses` | `ULong` | 0 | `POST /api/baseline` (not routed yet) |
 
-WiFi credentials are set in `src/web/credentials.h` (gitignored). Copy `credentials.h.example` to `credentials.h` and fill in your network details.
-
-EEPROM addresses are defined in `lib/Storage/storage.h`:
-
-| Macro | Value | Meaning |
-|---|---|---|
-| `EEPROM_INIT_ADDR` | 0 | Magic-flag byte location |
-| `EEPROM_INIT_MAGIC` | 0xA5 | Value that marks EEPROM as initialized |
-| `EEPROM_PULSE_ADDR` | 1 | Where the pulse count is stored |
+WiFi credentials: copy `src/web/credentials.h.example` to
+`src/web/credentials.h` and fill in `WIFI_SSID` / `WIFI_PASSWORD`. That file is
+gitignored.
 
 ---
 
-## Building & Uploading
+## Building & uploading
 
 1. Install [PlatformIO](https://platformio.org/) (VS Code extension or CLI).
-2. Copy `src/web/credentials.h.example` to `src/web/credentials.h` and fill in your WiFi credentials.
-3. Open the project folder in VS Code (or run `pio run` from the CLI).
-4. Connect your ESP32 via USB.
-5. Upload the dashboard files to LittleFS flash:
+2. Create `src/web/credentials.h` from `credentials.h.example`.
+3. Upload the dashboard files to LittleFS:
 
-```bash
-pio run -e esp32 -t uploadfs
-```
+   ```bash
+   pio run -e esp32 -t uploadfs
+   ```
 
-6. Build and upload the firmware:
+4. Build and flash the firmware:
 
-```bash
-pio run -e esp32 -t upload
-```
+   ```bash
+   pio run -e esp32 -t upload
+   ```
 
-7. Open the serial monitor at 115200 baud to watch debug output:
+5. Watch the boot log at 115200 baud:
 
-```bash
-pio device monitor -e esp32
-```
+   ```bash
+   pio device monitor -e esp32
+   ```
 
-The device will connect to WiFi (or fall back to AP mode) and serve the dashboard at the IP shown in the serial monitor.
+The serial log prints the loaded values and the assigned IP address. If WiFi
+fails, connect to `Krestel-Setup` and browse to `192.168.4.1`.
 
----
-
-## Web Dashboard
-
-The dashboard lives in `data/dashboard/` and is served from the ESP32's flash via LittleFS. It includes:
-
-- A sidebar navigation with Home Energy, Submeters & Devices, and Settings sections.
-- Metric cards for **Power Now**, **Used This Month**, **Estimated Month-End Bill**, and **Active Submeters**.
-- An animated SVG energy-consumption curve with recorded and forecasted segments.
-- Interactive data points that show a tooltip with date, draw, and estimated cost on hover.
-- A smart-home tip card recommending off-peak EV charging.
-
-### API Endpoints
-
-The web server (`src/web/server.cpp`) exposes:
-
-| Endpoint | Method | Description |
-|---|---|---|
-| `/` | GET | Serves the dashboard (HTML/CSS/JS from LittleFS) |
-| `/api/metrics` | GET | Returns JSON: `pulses`, `kwh`, `uptime`, `wifi_rssi` |
-| `/api/chart` | GET | Returns JSON: chart labels and values |
-
-### Updating the dashboard
-
-Edit the files in `data/dashboard/` (HTML, CSS, JS) as needed, then re-upload to flash:
-
-```bash
-pio run -e esp32 -t uploadfs
-```
-
-No firmware rebuild is needed for UI-only changes.
+`platformio.ini` also still contains an `[env:uno]` block (ATmega328P with
+`LiquidCrystal_I2C`) left over from the early bench build. It is not usable
+today: `include/header.h` pulls in `WiFi.h` and `ESPAsyncWebServer.h`.
 
 ---
 
-## Library Reference
+## Web dashboard
 
-### PulseSensor (`lib/PulseSensor/`)
+`data/dashboard/` is served from flash. UI-only changes need `uploadfs` but no
+firmware rebuild.
 
-| Symbol | Type | Description |
+Dashboard features wired to the device:
+
+- **Current Meter Reading** card — shows `kwh` from `/api/metrics` (device
+  relative, i.e. `totalPulses / pulseConstant`) and the cumulative pulse count.
+- **Pulse constant** form — steps in 100 imp/kWh increments, posts to
+  `/api/pulse-config`.
+- **Utility rate** form — posts to `/api/rate-config`, then recomputes cost per
+  pulse / hour / projected spend in the page.
+- Theme toggle, sync button, and a 2-second metrics poll.
+
+Still placeholder: the timeframe switcher (`Used Today/Week/Month/Billing`), the
+daily-average and projected-spend cards, the progress bar, and the entire SVG
+chart series. The "Live WS" pill is cosmetic — data is fetched by polling.
+
+`index.html` also links `pico.min.css`, which is not in the repository yet. Copy
+it into `data/dashboard/` before uploading, or the page will render unstyled.
+
+### API
+
+| Endpoint | Method | Body / response |
 |---|---|---|
-| `SENSOR_PIN` | constexpr uint8_t | Sensor GPIO |
-| `PULSE_CONSTANT` | constexpr uint16_t | Pulses per kWh |
-| `DEBOUNCE_MILLIS` | const unsigned long | Debounce window |
-| `kwh` | volatile unsigned long | Live kWh estimate (ISR-written) |
-| `totalPulses` | volatile unsigned long | Total pulses counted since boot/reset |
-| `rawFires` | volatile unsigned long | Total ISR firings (including debounced-out ones) |
-| `lastPulseTime` | volatile unsigned long | `millis()` of last valid pulse |
-| `safeKwhRead` | unsigned long | Snapshot of `kwh` taken under `noInterrupts()` |
-| `initSensor()` | void | Configures pin and attaches interrupt |
-| `readPulse()` | void (ISR) | Handles a falling edge |
-| `updateSafeKwh()` | void | Copies `kwh` → `safeKwhRead` safely |
+| `/` | GET | Dashboard static files from LittleFS |
+| `/api/metrics` | GET | `pulses`, `kwh`, `since_baseline_kwh`, `meter_kwh`, `has_baseline`, `uptime` (seconds) |
+| `/api/config` | GET | `constant`, `rate`, `baseline_kwh`, `baseline_pulses`, `ip_address` |
+| `/api/pulse-config` | POST | form field `pulse-config` (urlencoded); `0`/missing → 400 |
+| `/api/rate-config` | POST | form field `rate-config` (urlencoded); `0`/missing → 400 |
+| `/api/baseline` | POST | declared in `handlers.h`, **not registered** on the server |
+| `/api/reading` | POST | posted by the dashboard as JSON, **not implemented** (404) |
 
-### PulseLEDSim (`lib/PulseLEDSim/`)
+Unknown routes return `404 text/plain`.
 
-| Symbol | Description |
+---
+
+## Library reference
+
+| Library | Public surface |
 |---|---|
-| `initLED()` | Sets `LED_PIN` as output |
-| `pulseLED()` | Blinks the LED in a double-transition pattern with a 200 ms pause |
+| `PulseSensor` | `initSensor()`, `readPulse()` (ISR), `updateSafeKwh()`, `updateSafeRate()`; globals `totalPulses`, `rawFires`, `lastPulseTime`, `baselinePulses`, `baselineKwh`, `pulseConstant`, `utilityRate`, `safeKwhRead`, `safeEstimateReading` |
+| `Storage` | `initStorage()`; `savePulseCount()`, `savePulseConstant()`, `saveUtilityRate()`, `saveBaseline(kwh, pulses)`; matching read functions |
+| `PulseLEDSim` | `initLED()`, `pulseLED()` — two 5 ms blinks then a 200 ms pause |
+| `Display` | `initDisplay()`, `displayData()` — parked; references a removed `PULSE_CONSTANT` |
+| `Meter` | Empty; reserved for the meter-state refactor |
 
-This is a simulation/debug aid — it mirrors the pulse cadence visually. Replace it with real hardware linking if your LED should react directly to sensor pulses.
-
-### Storage (`lib/Storage/`)
-
-| Symbol | Description |
-|---|---|
-| `initStorage()` | On first boot: resets pulse count and writes magic. Otherwise: restores saved count into `totalPulses` |
-| `savePulseCount(unsigned long)` | Writes the pulse count to EEPROM |
-| `readSavedPulseCount()` | Reads and returns the saved pulse count from EEPROM |
+See `lib/README` for the per-library details and `include/README` for header
+conventions.
 
 ---
 
 ## Calibration
 
-Your energy sensor's pulse constant may differ from the default 1600 imp/kWh. To calibrate:
+1. Find your meter's `imp/kWh` rating — the HGL-888 is 1600.
+2. Enter it in the dashboard's pulse-constant form, or change the NVS
+   fallbacks in `lib/Storage/storage.cpp` if you want it correct on first boot.
+3. With a known load, compare the dashboard's kWh delta against the meter's own
+   register over a fixed interval; adjust if needed.
 
-1. Check your meter's datasheet or label for its `imp/kWh` (or `kWh/imp`) rating.
-2. Set `PULSE_CONSTANT` in `lib/PulseSensor/pulseSensor.h` to that value.
-3. If your sensor outputs a proportional pulse stream (not a fixed imp/kWh), measure a known consumption period, count pulses, and derive `PULSE_CONSTANT = totalPulses / kWh_consumed`.
+Because a baseline reading is typed in after the fact, pulses that occur while
+you are entering the number get counted as post-baseline consumption. At 2.4 kW
+that is roughly 0.04 kWh per minute of typing — below a single 1600 imp/kWh
+step (0.000625 kWh), so no clock or timestamp is needed for it.
 
 ---
 
-## Notes & Limitations
+## Known gaps
 
-- **EEPROM wear**: `savePulseCount()` writes on every loop iteration (every ~255 ms). For long-term deployment, consider throttling writes to, e.g., once per minute or on significant pulse-count changes to reduce EEPROM wear.
-- **Single-zone metering**: the current firmware tracks one pulse source. Multi-submeter support (shown in the dashboard UI) requires extending pulse counting and storage to multiple channels.
-- **Interrupt safety**: `kwh` and `totalPulses` are `volatile` and updated in an ISR. Any new code reading them directly must either disable interrupts or use `updateSafeKwh()`/equivalent.
-- **WiFi credentials**: never commit `src/web/credentials.h`. It is gitignored. Use `credentials.h.example` as a template.
+These are the concrete things standing between the bench prototype and a
+trustworthy submeter.
+
+- **The baseline handler does not compile.** `receiveBaseline()` uses
+  `currentKwh`, which is local to `sendMetrics()`; calls
+  `saveBaseline(newBaseline)` although it takes two arguments; and calls
+  `isDecimal(param->value())` while the helper is declared as
+  `isDecimal()` with an empty body. Its numeric check is also inverted — it
+  replies 400 when the value *is* numeric.
+- **The baseline contract disagrees end to end.** The handler reads the form
+  field `baseline-kwh`; the header comment and route name say `/api/baseline`;
+  the dashboard posts JSON to `/api/reading`. One format has to win, and the
+  route still has to be registered.
+- **Metrics emits uninitialized values.** `sendMetrics()` declares
+  `sinceBaselineKwh`, `meterKwh`, and `hasBaseline` but never assigns them, so
+  those JSON fields are garbage and the absolute register cannot be shown yet.
+- **NVS wear.** `savePulseCount()` runs every loop iteration (~220 ms). That is
+  far too often for flash; batch writes to every N pulses or on a timer.
+- **Dashboard placeholders.** Timeframe, daily average, projection, and chart
+  data have no data source. A baseline alone does not create history.
+- **Missing `pico.min.css`.** Referenced by `index.html`, absent from
+  `data/dashboard/`.
+- **Duplicate metric semantics.** `kwh` is device-relative; the "Current Meter
+  Reading" card needs `meter_kwh` from the baseline, not `kwh`.
+- **`console.Error(err)`** in the pulse-config save path throws a `TypeError`
+  inside its own `catch`, turning a handled network failure into an unhandled
+  one.
+- **Sensor module LEDs.** The LM393 board's PWR/DO LEDs can contaminate the
+  optical reading; the DO LED trace must be cut and a baffle fitted before the
+  final assembly.
+- **Case-sensitive checkouts.** The repository's index has held both
+  `PulseSensor.h` and `pulseSensor.h` because `core.ignorecase=true`; a
+  case-sensitive clone may fail to resolve includes. `lib/Display/display.h`
+  still includes `"PulseSensor.h"`.
+- **No tests.** See `test/README` for the intended first targets.
+
+---
+
+## Roadmap
+
+From `PLAN.md`, in order: finish and route the baseline endpoint, replace the
+placeholder dashboard data, complete the physical install (wire, crimper,
+baffle, module LED mod), run a multi-day soak test against the meter register,
+then decide on reconciliation and further hardware work.
 
 ---
 
