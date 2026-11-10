@@ -37,14 +37,14 @@ void sendMetrics(AsyncWebServerRequest *request) {
  * Sends the API current configuration of the imp to the dashboard such as:
  *  - Pulse constant (i.e. 1000imp)
  *  - Utility rate (i.e. 12.5)
+ *  - Baseline meter reading (i.e. 205.3)
  *  - Server IP Address (i.e. 255.255.255.255)
  */
 void sendConfig(AsyncWebServerRequest * request) {
   String configJson = "{";
   configJson += "\"constant\":" + String(pulseConstant) + ",";
   configJson += "\"rate\":" + String(utilityRate) + ",";
-  configJson += "\"baseline_kwh\":" + String(baselineKwh, 2) + ",";
-  configJson += "\"baseline_pulses\":" + String(baselinePulses) + ",";
+  configJson += "\"baseline_kwh\":" + String(baselineKwh, 1) + ",";
   configJson += "\"ip_address\":\"" + WiFi.localIP().toString() + "\"";
   configJson += "}";
 
@@ -130,7 +130,7 @@ void receiveBaseline(AsyncWebServerRequest * request) {
 
   //TODO: add a currentKwh value 
   //TODO: add a new class called METER to store the values of a meter rather than stuffing all of it in the pulseSensor Class
-  currentKwh = baselineKwh + totalPulses / pulseConstant;
+  currentKwh = baselineKwh + safeKwhRead;
 
   saveBaseline(newBaseline);
 
@@ -144,6 +144,6 @@ void receiveBaseline(AsyncWebServerRequest * request) {
  *  - The user enters "banana" resulting in "0.0" in the toFloat(), same as of a real "0.0" input. 
  *  - Unlike receiveConfig() and receiveUtilityRateConfig(), receiveBaseline can accept "0.0" as an input.
  */
-static boolean isDecimal() {
+static boolean parseToFloat() {
   //TODO: implement the decimal checker
 }
