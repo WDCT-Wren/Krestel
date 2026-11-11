@@ -113,23 +113,20 @@ void receiveBaseline(AsyncWebServerRequest * request) {
     request->send(400, "text/plain", "Missing 'rate-config' parameter");
     return;
   }
-
-  float newBaseline = param->value().toFloat();
+  float newBaseline;
 
   //failure checkers
   if (newBaseline > 99999.9) {
     request->send(400, "text/plain", "invalid 'baseline' value - maximum meter value is 99,999.9");
     return;
   }
-  if (isDecimal(param->value())) {
+  if (!parseKwh(param->value(), newBaseline)) {
     request->send(400, "text/plain", "invalid 'baseline' value - must be a number not a string!");
     return;
   }
 
   baselineKwh = newBaseline;
 
-  //TODO: add a currentKwh value 
-  //TODO: add a new class called METER to store the values of a meter rather than stuffing all of it in the pulseSensor Class
   currentKwh = baselineKwh + safeKwhRead;
 
   saveBaseline(newBaseline);
@@ -143,7 +140,18 @@ void receiveBaseline(AsyncWebServerRequest * request) {
  * Helper function for receiveBaseline() by checking if the entered string towards the textfield of the baseline is a float to prevent the ff. cases:
  *  - The user enters "banana" resulting in "0.0" in the toFloat(), same as of a real "0.0" input. 
  *  - Unlike receiveConfig() and receiveUtilityRateConfig(), receiveBaseline can accept "0.0" as an input.
+ * 
+ * @param stringInput the string input used in the 
  */
-static boolean parseToFloat() {
-  //TODO: implement the decimal checker
+static boolean parseKwh(const String& stringInput, float &out) {
+  const char *str = stringInput.c_str();
+  char *end; 
+
+  float v = strtof(str, &end);
+
+  if (end == str || *end != '\0') return false; // rejects the strings with no numbers on them or with trailing garbage such as from an input of "12.5abc"
+  if (!isfinite(v) || v < 0) return false; // rejects infinite numbers, NaNs or negatives
+
+  out = v;
+  return true;
 }
